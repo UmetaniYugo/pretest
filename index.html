@@ -3,7 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <title>動作解析デモ</title>
-  <style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+   }
+
+    #video, #output {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+    }
+    #output { z-index: 1; }
+    #video { z-index: 0; }
+    #statusText {
+      position: absolute;
+      bottom: 20px;
+      width: 100%;
+      text-align: center;
+      color: white;
+      font-size: 24px;
+      z-index: 2;
+      text-shadow: 0 0 5px black;
+    }
+  </style>
+  <!-- JavaScriptの読み込みはbodyの最後でOK -->
+</head>
+</style>
     canvas { position: absolute; left: 0; top: 0; }
     #status { position: absolute; top: 10px; left: 10px; font-size: 24px; background: white; }
   </style>
@@ -12,6 +45,10 @@
   <video id="video" autoplay playsinline width="640" height="480" style="border:1px solid #ccc;"></video>
   <canvas id="canvas"></canvas>
   <div id="status">Loading...</div>
+  
+  <video id="video" autoplay playsinline muted></video>
+<canvas id="output"></canvas>
+<div id="statusText">Loading...</div>
 
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
