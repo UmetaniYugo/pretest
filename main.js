@@ -33,8 +33,8 @@ navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
 });
 
 function onResults(results) {
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+  canvasElement.width = videoElement.videoWidth;
+  canvasElement.height = videoElement.videoHeight;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, { color: '#00FF00', lineWidth: 4 });
   drawLandmarks(ctx, results.poseLandmarks, { color: '#FF0000', lineWidth: 2 });
