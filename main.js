@@ -33,6 +33,7 @@ navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
 });
 
 function onResults(results) {
+  console.log("onResultsが起動");
   canvasElement.width = videoElement.videoWidth;
   canvasElement.height = videoElement.videoHeight;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
