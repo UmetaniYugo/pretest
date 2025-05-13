@@ -1,0 +1,73 @@
+<!-- compare.html -->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>比較モード</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: black;
+      overflow: hidden;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    .panel {
+      flex: 1;
+      position: relative;
+    }
+    video, canvas {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      object-fit: cover;
+    }
+    #status {
+      position: absolute;
+      bottom: 10px;
+      width: 100%;
+      text-align: center;
+      color: white;
+      font-size: 18px;
+      z-index: 2;
+    }
+    #videoInput {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 2;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 自分の動作 -->
+    <div class="panel">
+      <video id="videoSelf" autoplay playsinline muted></video>
+      <canvas id="canvasSelf"></canvas>
+    </div>
+
+    <!-- 理想動画 -->
+    <div class="panel">
+      <input type="file" id="videoInput" accept="video/*" />
+      <video id="videoIdeal" muted></video>
+      <canvas id="canvasIdeal"></canvas>
+    </div>
+  </div>
+
+  <div id="status">Loading...</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="compare.js"></script>
+</body>
+</html>
