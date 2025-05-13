@@ -1,50 +1,37 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>動作解析デモ</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta charset="UTF-8" />
+  <title>動作解析メニュー</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    html, body {
+    body {
       margin: 0;
       padding: 0;
-      height: 100%;
-      background: #000;
-      overflow: hidden;
-    }
-
-    #video, #canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100vw;
+      display: flex;
+      flex-direction: column;
       height: 100vh;
-      object-fit: cover;
-    }
-
-    #canvas { z-index: 1; }
-    #video { z-index: 0; }
-
-    #status {
-      position: absolute;
-      bottom: 20px;
-      width: 100%;
-      text-align: center;
+      justify-content: center;
+      align-items: center;
+      background: #111;
       color: white;
-      font-size: 24px;
-      z-index: 2;
-      text-shadow: 0 0 5px black;
+      font-family: sans-serif;
+    }
+    button {
+      font-size: 1.5em;
+      padding: 1em 2em;
+      margin: 1em;
+      border: none;
+      border-radius: 8px;
+      background: #00bcd4;
+      color: white;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <video id="video" autoplay playsinline muted></video>
-  <canvas id="canvas"></canvas>
-  <div id="status">Loading...</div>
-
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-  <script src="main.js"></script>
+  <h1>動作解析メニュー</h1>
+  <button onclick="location.href='realtime.html'">リアルタイム解析</button>
+  <button onclick="location.href='compare.html'">比較モード</button>
 </body>
 </html>
