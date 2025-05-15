@@ -1,92 +1,61 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <title>比較モード</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <style>
-    body {
-      margin: 0;
-      font-family: sans-serif;
-      background: #111;
-      color: white;
-    }
-
-    .container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 1rem;
-    }
-
-    .video-container {
-      display: flex;
-      justify-content: space-around;
-      width: 100%;
-      flex-wrap: wrap;
-      margin-top: 1rem;
-    }
-
-    .video-box {
-      position: relative;
-      width: 45%;
-      margin-bottom: 2rem;
-    }
-
-    video, canvas {
-      width: 100%;
-      height: auto;
-      border-radius: 10px;
-      background: black;
-    }
-
-    .advice {
-      margin-top: 0.5rem;
-      font-size: 1rem;
-      color: #0f0;
-      text-shadow: 1px 1px 3px black;
-    }
-
-    input[type="file"] {
-      margin: 1rem 0;
-      background: #222;
-      color: white;
-      padding: 0.5rem;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-
-    h1 {
-      color: #0ff;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>動画アップロード比較</title>
+<style>
+  body {
+    background: #000;
+    color: #fff;
+    font-family: sans-serif;
+    margin: 0; padding: 20px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  h1 {
+    margin-bottom: 10px;
+  }
+  .upload-area {
+    margin-bottom: 15px;
+  }
+  video, canvas {
+    display: block;
+    max-width: 90vw;
+    margin-bottom: 15px;
+    border: 2px solid #fff;
+    border-radius: 8px;
+  }
+  #container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  #adviceArea {
+    margin-top: 10px;
+    white-space: pre-wrap;
+    font-size: 1.1rem;
+    max-width: 90vw;
+  }
+</style>
 </head>
 <body>
-  <div class="container">
-    <h1>比較モード</h1>
-
-    <div class="video-container">
-      <!-- Video 1 -->
-      <div class="video-box">
-        <input type="file" id="video1Input" accept="video/*" />
-        <video id="video1" muted playsinline></video>
-        <canvas id="canvas1"></canvas>
-        <div id="adviceArea1" class="advice">動画1のアドバイス</div>
-      </div>
-
-      <!-- Video 2 -->
-      <div class="video-box">
-        <input type="file" id="video2Input" accept="video/*" />
-        <video id="video2" muted playsinline></video>
-        <canvas id="canvas2"></canvas>
-        <div id="adviceArea2" class="advice">動画2のアドバイス</div>
-      </div>
-    </div>
+  <h1>動画アップロード比較</h1>
+  <div class="upload-area">
+    <input type="file" id="video1Input" accept="video/*" />
   </div>
+  <video id="video1" muted playsinline></video>
+  <canvas id="canvas1"></canvas>
 
-  <!-- MediaPipe & app script -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-  <script src="compare.js"></script>
+  <div class="upload-area">
+    <input type="file" id="video2Input" accept="video/*" />
+  </div>
+  <video id="video2" muted playsinline></video>
+  <canvas id="canvas2"></canvas>
+
+  <pre id="adviceArea">ここにアドバイスが表示されます</pre>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+<script src="compare.js"></script>
 </body>
 </html>
