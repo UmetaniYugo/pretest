@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>比較モード</title>
+  <title>動作比較モード</title>
   <style>
     body {
       margin: 0;
@@ -15,36 +15,47 @@
     .video-container {
       display: flex;
       flex-direction: column;
-      height: 80vh;
+      height: 100vh;
     }
-    video {
+    .video-block {
+      position: relative;
+      flex: 1;
+    }
+    video, canvas {
+      position: absolute;
       width: 100%;
-      height: 50%;
-      object-fit: contain;
-      background: #111;
+      height: 100%;
+      object-fit: cover;
     }
     input[type="file"] {
       margin: 10px;
     }
-    #resultBox {
+    #adviceArea {
+      background: rgba(0, 0, 0, 0.7);
       padding: 10px;
-      background: #222;
-      color: #0f0;
+      font-size: 18px;
     }
   </style>
 </head>
 <body>
-  <h1>比較モード</h1>
+  <h2>動画アップロード比較</h2>
+  <input type="file" id="video1Input" accept="video/*">
+  <input type="file" id="video2Input" accept="video/*">
   <div class="video-container">
-    <video id="userVideo" autoplay muted playsinline></video>
-    <video id="uploadedVideo" controls></video>
+    <div class="video-block">
+      <video id="video1" muted></video>
+      <canvas id="canvas1"></canvas>
+    </div>
+    <div class="video-block">
+      <video id="video2" muted></video>
+      <canvas id="canvas2"></canvas>
+    </div>
   </div>
-  <input type="file" id="videoUpload" accept="video/*" />
-  <div id="resultBox">アドバイスを表示中...</div>
+  <div id="adviceArea">アドバイスをここに表示</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
   <script src="compare.js"></script>
 </body>
 </html>
