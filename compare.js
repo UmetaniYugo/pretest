@@ -1,16 +1,13 @@
-const liveVideo = document.getElementById('liveVideo');
+const userVideo = document.getElementById('userVideo');
 const uploadedVideo = document.getElementById('uploadedVideo');
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-const uploadInput = document.getElementById('uploadInput');
+const videoUpload = document.getElementById('videoUpload');
+const resultBox = document.getElementById('resultBox');
 
-let liveLandmarks = null;
-let uploadedLandmarks = null;
-
-// Pose モデルの準備
-const pose = new Pose.Pose({
+// Mediapipe Pose
+const pose = new Pose({
   locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
 });
+
 pose.setOptions({
   modelComplexity: 1,
   smoothLandmarks: true,
@@ -18,81 +15,91 @@ pose.setOptions({
   minDetectionConfidence: 0.5,
   minTrackingConfidence: 0.5
 });
+
+// ユーザーのリアルタイム映像にpose適用
+const camera = new Camera(userVideo, {
+  onFrame: async () => {
+    await pose.send({ image: userVideo });
+  },
+  width: 640,
+  height: 480
+});
+
+camera.start();
+
+let latestUserLandmarks = null;
+let latestUploadedLandmarks = null;
+
 pose.onResults(results => {
-  if (results.poseLandmarks) {
-    if (currentSource === 'live') {
-      liveLandmarks = results.poseLandmarks;
+  // どちらのソースか判定
+  if (results.image.width === userVideo.videoWidth) {
+    latestUserLandmarks = results.poseLandmarks;
+  } else if (results.image.width === uploadedVideo.videoWidth) {
+    latestUploadedLandmarks = results.poseLandmarks;
+  }
+
+  if (latestUserLandmarks && latestUploadedLandmarks) {
+    const userAngle = getElbowAngle(latestUserLandmarks);
+    const uploadedAngle = getElbowAngle(latestUploadedLandmarks);
+
+    const diff = Math.abs(userAngle - uploadedAngle);
+    let advice = `右肘の角度差: ${diff.toFixed(1)}°\n`;
+
+    if (diff > 30) {
+      advice += '→ 肘の角度がかなり違います。フォームを見直しましょう。';
+    } else if (diff > 15) {
+      advice += '→ 肘の角度にやや差があります。調整してみましょう。';
     } else {
-      uploadedLandmarks = results.poseLandmarks;
+      advice += '→ 肘の動きはほぼ一致しています！';
     }
-    compareLandmarks();
+
+    resultBox.innerText = advice;
   }
 });
 
-let currentSource = 'live';
-
-// カメラから映像を取得
-navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
-  liveVideo.srcObject = stream;
-  liveVideo.onloadedmetadata = () => {
-    const camera = new Camera.Camera(liveVideo, {
-      onFrame: async () => {
-        currentSource = 'live';
-        await pose.send({ image: liveVideo });
-      },
-      width: 640,
-      height: 480
-    });
-    camera.start();
-  };
-});
-
-// アップロード動画を処理
-uploadInput.addEventListener('change', e => {
+// アップロード動画が読み込まれたら処理開始
+videoUpload.addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
+
   const url = URL.createObjectURL(file);
   uploadedVideo.src = url;
 
-  uploadedVideo.onplay = () => {
-    const interval = setInterval(async () => {
-      if (uploadedVideo.paused || uploadedVideo.ended) {
-        clearInterval(interval);
-        return;
-      }
-      canvas.width = uploadedVideo.videoWidth;
-      canvas.height = uploadedVideo.videoHeight;
-      ctx.drawImage(uploadedVideo, 0, 0, canvas.width, canvas.height);
-      const image = canvas;
-      currentSource = 'uploaded';
-      await pose.send({ image });
-    }, 500); // 0.5秒おきに分析
-  };
+  uploadedVideo.addEventListener('loadeddata', () => {
+    processUploadedVideo();
+  });
 });
 
-// 比較処理 & 結果表示
-function compareLandmarks() {
-  if (!liveLandmarks || !uploadedLandmarks) return;
+function processUploadedVideo() {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
 
-  const liveWrist = liveLandmarks[16];
-  const uploadedWrist = uploadedLandmarks[16];
+  function analyzeFrame() {
+    if (uploadedVideo.paused || uploadedVideo.ended) return;
+    
+    canvas.width = uploadedVideo.videoWidth;
+    canvas.height = uploadedVideo.videoHeight;
+    ctx.drawImage(uploadedVideo, 0, 0, canvas.width, canvas.height);
 
-  const dx = liveWrist.x - uploadedWrist.x;
-  const dy = liveWrist.y - uploadedWrist.y;
-  const distance = Math.sqrt(dx * dx + dy * dy);
+    pose.send({ image: canvas });
 
-  const resultPanel = document.getElementById('resultPanel');
-  const resultMessage = document.getElementById('resultMessage');
-
-  if (distance < 0.1) {
-    resultMessage.innerText = "動きがよく一致しています！フォームは安定しています。";
-  } else {
-    resultMessage.innerText = "動きにズレがあります。手の動きを意識してみましょう。";
+    requestAnimationFrame(analyzeFrame);
   }
 
-  resultPanel.style.display = 'block';
+  analyzeFrame();
 }
 
-function closeResult() {
-  document.getElementById('resultPanel').style.display = 'none';
+function getElbowAngle(landmarks) {
+  const shoulder = landmarks[12]; // 右肩
+  const elbow = landmarks[14];    // 右ひじ
+  const wrist = landmarks[16];    // 右手首
+
+  if (!shoulder || !elbow || !wrist) return 0;
+
+  const a = Math.hypot(shoulder.x - elbow.x, shoulder.y - elbow.y);
+  const b = Math.hypot(wrist.x - elbow.x, wrist.y - elbow.y);
+  const c = Math.hypot(wrist.x - shoulder.x, wrist.y - shoulder.y);
+
+  const angle = Math.acos((a ** 2 + b ** 2 - c ** 2) / (2 * a * b));
+  return angle * (180 / Math.PI); // ラジアン→度
 }
