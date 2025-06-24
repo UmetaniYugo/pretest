@@ -1,61 +1,37 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>動画アップロード比較</title>
-<style>
-  body {
-    background: #000;
-    color: #fff;
-    font-family: sans-serif;
-    margin: 0; padding: 20px;
-    display: flex; flex-direction: column; align-items: center;
-  }
-  h1 {
-    margin-bottom: 10px;
-  }
-  .upload-area {
-    margin-bottom: 15px;
-  }
-  video, canvas {
-    display: block;
-    max-width: 90vw;
-    margin-bottom: 15px;
-    border: 2px solid #fff;
-    border-radius: 8px;
-  }
-  #container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  #adviceArea {
-    margin-top: 10px;
-    white-space: pre-wrap;
-    font-size: 1.1rem;
-    max-width: 90vw;
-  }
-</style>
+  <meta charset="UTF-8">
+  <title>動作比較モード</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { margin: 0; display: flex; flex-direction: column; align-items: center; background: #111; color: white; }
+    .video-wrapper { display: flex; width: 100%; }
+    video, canvas { width: 50vw; height: auto; }
+    #adviceArea { margin-top: 1em; font-size: 1.2em; text-align: center; white-space: pre-wrap; }
+  </style>
 </head>
 <body>
-  <h1>動画アップロード比較</h1>
-  <div class="upload-area">
-    <input type="file" id="video1Input" accept="video/*" />
+  <h2>動作比較モード</h2>
+  <div>
+    <input type="file" id="video1Input" accept="video/*">
+    <input type="file" id="video2Input" accept="video/*">
   </div>
-  <video id="video1" muted playsinline></video>
-  <canvas id="canvas1"></canvas>
-
-  <div class="upload-area">
-    <input type="file" id="video2Input" accept="video/*" />
+  <div class="video-wrapper">
+    <div>
+      <video id="video1" playsinline muted></video>
+      <canvas id="canvas1"></canvas>
+    </div>
+    <div>
+      <video id="video2" playsinline muted></video>
+      <canvas id="canvas2"></canvas>
+    </div>
   </div>
-  <video id="video2" muted playsinline></video>
-  <canvas id="canvas2"></canvas>
+  <div id="adviceArea">アドバイス表示エリア</div>
 
-  <pre id="adviceArea">ここにアドバイスが表示されます</pre>
-
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
-<script src="compare.js"></script>
+  <!-- Mediapipe & Script -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="compare.js"></script>
 </body>
 </html>
