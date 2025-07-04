@@ -7,25 +7,31 @@
   <style>
     body { margin: 0; display: flex; flex-direction: column; align-items: center; background: #111; color: white; }
     .video-wrapper { display: flex; width: 100%; }
-    video, canvas { width: 50vw; height: auto; }
+    video, canvas { width: 45vw; height: auto; }
     #adviceArea { margin-top: 1em; font-size: 1.2em; text-align: center; white-space: pre-wrap; }
     .button-area { margin: 1em; }
+    .howto { background: #222; color: #fff; padding: 0.5em 1em; border-radius: 8px; margin: 10px 0 20px 0; }
+    button { font-size: 1em; padding: 0.5em 1em;}
   </style>
 </head>
 <body>
   <h2>動作比較モード</h2>
+  <div class="howto">
+    <b>使い方:</b><br>
+    1. 左に「お手本動画」、右に「比較したい動画」をアップロードしてください。<br>
+    2. お手本動画をアップロード後、「自動で投げる瞬間」を検出し、骨格を解析します。<br>
+    3. 右側の動画を再生すると、投げる瞬間の骨格と比較し、実際に動作へ反映しやすいアドバイスが表示されます。<br>
+    ※アドバイスは右腕（肩・肘・手首）の動きを中心に出ます。
+  </div>
   <div>
     <input type="file" id="video1Input" accept="video/*">
     <input type="file" id="video2Input" accept="video/*">
+    <button id="detectThrowBtn">お手本の投げ瞬間を自動検出</button>
   </div>
   <div class="video-wrapper">
     <div>
       <video id="video1" controls playsinline muted></video>
       <canvas id="canvas1"></canvas>
-      <div class="button-area">
-        <button id="markStart">お手本: 投げ開始</button>
-        <button id="markEnd">お手本: 投げ終了</button>
-      </div>
     </div>
     <div>
       <video id="video2" controls playsinline muted></video>
