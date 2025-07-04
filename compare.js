@@ -8,15 +8,40 @@ const adviceArea = document.getElementById('adviceArea');
 
 let referencePose = null;
 
+// お手本区間記録用
+let markingReference = false;
+let tempReferencePoses = [];
+
 const pose1 = new Pose({ locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
 const pose2 = new Pose({ locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
 
 pose1.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
 pose2.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
 
+// お手本区間の開始ボタン
+document.getElementById('markStart').onclick = () => {
+  markingReference = true;
+  tempReferencePoses = [];
+};
+
+// お手本区間の終了ボタン
+document.getElementById('markEnd').onclick = () => {
+  markingReference = false;
+  // 区間中央の骨格をお手本に採用
+  if (tempReferencePoses.length > 0) {
+    referencePose = tempReferencePoses[Math.floor(tempReferencePoses.length / 2)];
+    adviceArea.innerText = "お手本骨格を設定しました。";
+  } else {
+    adviceArea.innerText = "お手本区間に骨格データがありません。";
+  }
+};
+
 pose1.onResults(results => {
   drawPose(results, ctx1, canvas1);
-  if (results.poseLandmarks) referencePose = results.poseLandmarks;
+  if (markingReference && results.poseLandmarks) {
+    // 深いコピーで保存
+    tempReferencePoses.push(JSON.parse(JSON.stringify(results.poseLandmarks)));
+  }
 });
 
 pose2.onResults(results => {
@@ -45,6 +70,10 @@ document.getElementById('video2Input').addEventListener('change', e => {
 
 video1.addEventListener('play', () => startProcessing(video1, pose1));
 video2.addEventListener('play', () => startProcessing(video2, pose2));
+
+// ループ再生も可。自動では戻さず、controlsで何度でも再生可能に。
+video1.addEventListener('ended', () => { video1.currentTime = 0; });
+video2.addEventListener('ended', () => { video2.currentTime = 0; });
 
 function startProcessing(video, pose) {
   function process() {
