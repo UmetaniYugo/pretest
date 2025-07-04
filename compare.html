@@ -9,6 +9,7 @@
     .video-wrapper { display: flex; width: 100%; }
     video, canvas { width: 50vw; height: auto; }
     #adviceArea { margin-top: 1em; font-size: 1.2em; text-align: center; white-space: pre-wrap; }
+    .button-area { margin: 1em; }
   </style>
 </head>
 <body>
@@ -19,11 +20,15 @@
   </div>
   <div class="video-wrapper">
     <div>
-      <video id="video1" playsinline muted></video>
+      <video id="video1" controls playsinline muted></video>
       <canvas id="canvas1"></canvas>
+      <div class="button-area">
+        <button id="markStart">お手本: 投げ開始</button>
+        <button id="markEnd">お手本: 投げ終了</button>
+      </div>
     </div>
     <div>
-      <video id="video2" playsinline muted></video>
+      <video id="video2" controls playsinline muted></video>
       <canvas id="canvas2"></canvas>
     </div>
   </div>
