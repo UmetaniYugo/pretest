@@ -8,7 +8,8 @@ const adviceArea = document.getElementById('adviceArea');
 const detectThrowBtn = document.getElementById('detectThrowBtn');
 
 let referencePose = null;
-let allReferencePoses = []; // お手本動画全体の骨格配列
+let allReferencePoses = [];
+let adviceHistory = []; // ここでアドバイスを溜める
 
 const pose1 = new Pose({ locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
 const pose2 = new Pose({ locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
@@ -16,7 +17,6 @@ const pose2 = new Pose({ locateFile: file => `https://cdn.jsdelivr.net/npm/@medi
 pose1.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
 pose2.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
 
-// お手本動画の全骨格を記録
 let recordingAllPoses = false;
 
 document.getElementById('video1Input').addEventListener('change', e => {
@@ -52,8 +52,15 @@ video1.addEventListener('ended', () => {
   video1.currentTime = 0;
 });
 
-video2.addEventListener('play', () => startProcessing(video2, pose2, false));
-video2.addEventListener('ended', () => { video2.currentTime = 0; });
+video2.addEventListener('play', () => {
+  adviceHistory = []; // 再生ごとにリセット
+  startProcessing(video2, pose2, false);
+});
+video2.addEventListener('ended', () => {
+  video2.currentTime = 0;
+  // 再生が終わったら、アドバイスを集計してまとめて表示
+  adviceArea.innerText = summarizeAdvices(adviceHistory);
+});
 
 function startProcessing(video, pose, isReference) {
   function process() {
@@ -66,7 +73,6 @@ function startProcessing(video, pose, isReference) {
 
 pose1.onResults(results => {
   drawPose(results, ctx1, canvas1);
-  // お手本動画の全骨格フレームを一時保存
   if (recordingAllPoses && results.poseLandmarks) {
     allReferencePoses.push(JSON.parse(JSON.stringify(results.poseLandmarks)));
   }
@@ -74,9 +80,10 @@ pose1.onResults(results => {
 
 pose2.onResults(results => {
   drawPose(results, ctx2, canvas2);
-  if (results.poseLandmarks && referencePose) {
+  // アドバイスは動画再生終了後にまとめて表示
+  if (results.poseLandmarks && referencePose && !video2.paused && !video2.ended) {
     const advice = generatePracticalAdvice(referencePose, results.poseLandmarks);
-    adviceArea.innerText = advice;
+    adviceHistory.push(advice);
   }
 });
 
@@ -122,7 +129,6 @@ function drawPose(results, ctx, canvas) {
 
 // 実践しやすいアドバイス生成
 function generatePracticalAdvice(ref, target) {
-  // 右腕の肩(12),肘(14),手首(16)
   const getAngle = (a, b, c) => {
     const ab = { x: b.x - a.x, y: b.y - a.y };
     const cb = { x: b.x - c.x, y: b.y - c.y };
@@ -140,25 +146,41 @@ function generatePracticalAdvice(ref, target) {
   const angleTar = getAngle(tS, tE, tW);
 
   let advice = "";
-  // 肘の使い方
   if (angleTar < angleRef - 10) {
-    advice += "肘をもう少し伸ばして投げてみましょう。\n";
+    advice += "肘をもう少し伸ばして投げてみましょう。";
   } else if (angleTar > angleRef + 10) {
-    advice += "肘をもう少し曲げて投げてみましょう。\n";
+    advice += "肘をもう少し曲げて投げてみましょう。";
   } else {
-    advice += "肘の使い方はお手本に近いです。\n";
+    advice += "肘の使い方はお手本に近いです。";
   }
   // 腕の高さ（肩と手首のy座標比較）
   if (Math.abs(tW.y - tS.y) > Math.abs(rW.y - rS.y) + 0.07) {
-    advice += "手首の位置が低いので、もう少し高く振り上げましょう。\n";
+    advice += "手首の位置が低いので、もう少し高く振り上げましょう。";
   } else if (Math.abs(tW.y - tS.y) < Math.abs(rW.y - rS.y) - 0.07) {
-    advice += "手首の位置が高すぎるかもしれません。自然に振り下ろすよう意識しましょう。\n";
+    advice += "手首の位置が高すぎるかもしれません。自然に振り下ろすよう意識しましょう。";
   }
   // 追加：手首の前後動（x座標）
   if (tW.x < tS.x - 0.05) {
-    advice += "手首をより前に出すイメージで投げてみましょう。\n";
+    advice += "手首をより前に出すイメージで投げてみましょう。";
   }
 
   if (advice === "") advice = "お手本とよく似ています！";
   return advice;
+}
+
+// 複数アドバイスからまとめ文を生成
+function summarizeAdvices(history) {
+  if (!history || history.length === 0) return "アドバイスデータがありません。";
+  // 出現回数の多いアドバイスをグルーピングして要約
+  const freq = {};
+  for (const adv of history) {
+    freq[adv] = (freq[adv] || 0) + 1;
+  }
+  // 多い順に並べて最大3件くらい表示
+  const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]);
+  let summary = "まとめアドバイス：\n";
+  sorted.slice(0, 3).forEach(([advice, cnt], idx) => {
+    summary += `${idx + 1}. ${advice}（${cnt}回）\n`;
+  });
+  return summary;
 }
