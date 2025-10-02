@@ -1,5 +1,7 @@
 import { getAdviceFromGemini } from './aiAdvice.js';
 
+const video1Input = document.getElementById('video1Input');
+const video2Input = document.getElementById('video2Input');
 const video1 = document.getElementById('video1');
 const video2 = document.getElementById('video2');
 const canvas1 = document.getElementById('canvas1');
@@ -10,7 +12,6 @@ const compareBtn = document.getElementById('compareBtn');
 let referencePoseFrames = [];
 let targetPoseFrames = [];
 
-// MediaPipe Poseインスタンス
 const pose1 = new window.Pose({locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.4/${file}`});
 pose1.setOptions({modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5});
 const pose2 = new window.Pose({locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.4/${file}`});
@@ -32,6 +33,7 @@ function processVideo(video, pose, frameArray, canvas) {
   pose.onResults(results => {
     drawPose(results, ctx, canvas, video);
     if (results.poseLandmarks) {
+      // 毎秒1フレーム記録
       if (frameArray.length === 0 || Math.abs(video.currentTime - lastTime) > 1) {
         frameArray.push({landmarks: JSON.parse(JSON.stringify(results.poseLandmarks)), time: video.currentTime});
         lastTime = video.currentTime;
@@ -48,24 +50,24 @@ function processVideo(video, pose, frameArray, canvas) {
 }
 
 // ファイル選択・動画読込
-document.getElementById('video1Input').addEventListener('change', e => {
+video1Input.addEventListener('change', e => {
   const file = e.target.files[0];
   if (file) {
     video1.src = URL.createObjectURL(file);
     referencePoseFrames = [];
+    video1.load();
     video1.style.display = 'block';
     canvas1.style.display = 'block';
-    video1.load();
   }
 });
-document.getElementById('video2Input').addEventListener('change', e => {
+video2Input.addEventListener('change', e => {
   const file = e.target.files[0];
   if (file) {
     video2.src = URL.createObjectURL(file);
     targetPoseFrames = [];
+    video2.load();
     video2.style.display = 'block';
     canvas2.style.display = 'block';
-    video2.load();
   }
 });
 
