@@ -2,6 +2,8 @@ import { getAdviceFromGemini } from './aiAdvice.js';
 
 const video1Input = document.getElementById('video1Input');
 const video2Input = document.getElementById('video2Input');
+const video1Name = document.getElementById('video1Name');
+const video2Name = document.getElementById('video2Name');
 const video1 = document.getElementById('video1');
 const video2 = document.getElementById('video2');
 const canvas1 = document.getElementById('canvas1');
@@ -27,13 +29,43 @@ function drawPose(results, ctx, canvas, video) {
   window.drawLandmarks(ctx, results.poseLandmarks, { color: '#FF0000', lineWidth: 2 });
 }
 
+// ファイル表示とMP4チェック
+function showVideoFile(input, video, nameElem, canvas) {
+  const file = input.files[0];
+  if (!file) return;
+  // MP4以外は警告
+  if (!file.type.includes("mp4")) {
+    nameElem.innerText = "MP4のみ対応です（iOS仕様）";
+    video.style.display = 'none';
+    canvas.style.display = 'none';
+    return;
+  }
+  // ファイル名表示
+  nameElem.innerText = file.name;
+  // srcセット＆サムネイル表示
+  const url = URL.createObjectURL(file);
+  video.src = url;
+  video.load();
+  video.style.display = 'block';
+  canvas.style.display = 'block';
+}
+
+video1Input.addEventListener('change', () => {
+  showVideoFile(video1Input, video1, video1Name, canvas1);
+  referencePoseFrames = [];
+});
+video2Input.addEventListener('change', () => {
+  showVideoFile(video2Input, video2, video2Name, canvas2);
+  targetPoseFrames = [];
+});
+
+// 骨格抽出
 function processVideo(video, pose, frameArray, canvas) {
   const ctx = canvas.getContext('2d');
   let lastTime = -1;
   pose.onResults(results => {
     drawPose(results, ctx, canvas, video);
     if (results.poseLandmarks) {
-      // 毎秒1フレーム記録
       if (frameArray.length === 0 || Math.abs(video.currentTime - lastTime) > 1) {
         frameArray.push({landmarks: JSON.parse(JSON.stringify(results.poseLandmarks)), time: video.currentTime});
         lastTime = video.currentTime;
@@ -48,28 +80,6 @@ function processVideo(video, pose, frameArray, canvas) {
   }
   process();
 }
-
-// ファイル選択・動画読込
-video1Input.addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (file) {
-    video1.src = URL.createObjectURL(file);
-    referencePoseFrames = [];
-    video1.load();
-    video1.style.display = 'block';
-    canvas1.style.display = 'block';
-  }
-});
-video2Input.addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (file) {
-    video2.src = URL.createObjectURL(file);
-    targetPoseFrames = [];
-    video2.load();
-    video2.style.display = 'block';
-    canvas2.style.display = 'block';
-  }
-});
 
 // 再生イベントで骨格抽出開始
 video1.addEventListener('play', () => processVideo(video1, pose1, referencePoseFrames, canvas1));
