@@ -29,19 +29,19 @@ function drawPose(results, ctx, canvas, video) {
   window.drawLandmarks(ctx, results.poseLandmarks, { color: '#FF0000', lineWidth: 2 });
 }
 
-// ファイル表示とMP4チェック
+// ファイル表示とMP4/MOVチェック
 function showVideoFile(input, video, nameElem, canvas) {
   const file = input.files[0];
   if (!file) return;
-  // MP4以外は警告
-  if (!file.type.includes("mp4")) {
-    nameElem.innerText = "MP4のみ対応です（iOS仕様）";
+  // MP4またはMOVのみ許可
+  if (!(file.type.includes("mp4") || file.type.includes("quicktime"))) {
+    nameElem.innerText = "MP4またはMOVのみ対応です（iOS仕様）";
     video.style.display = 'none';
     canvas.style.display = 'none';
     return;
   }
-  // ファイル名表示
-  nameElem.innerText = file.name;
+  // ファイル名と形式表示
+  nameElem.innerText = `${file.name} (${file.type})`;
   // srcセット＆サムネイル表示
   const url = URL.createObjectURL(file);
   video.src = url;
