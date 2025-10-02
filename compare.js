@@ -10,13 +10,11 @@ const compareBtn = document.getElementById('compareBtn');
 let referencePoseFrames = [];
 let targetPoseFrames = [];
 
-// MediaPipe Pose初期化
 const pose1 = new window.Pose({locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.4/${file}`});
 pose1.setOptions({modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5});
 const pose2 = new window.Pose({locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.4/${file}`});
 pose2.setOptions({modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5});
 
-// 骨格描画
 function drawPose(results, ctx, canvas, video) {
   if (!results.poseLandmarks) return;
   canvas.width = video.videoWidth;
@@ -27,23 +25,25 @@ function drawPose(results, ctx, canvas, video) {
   window.drawLandmarks(ctx, results.poseLandmarks, { color: '#FF0000', lineWidth: 2 });
 }
 
-// 動画ごとにフレームごと骨格取得
 function processVideo(video, pose, frameArray, canvas) {
   const ctx = canvas.getContext('2d');
+  let lastTime = -1;
+  pose.onResults(results => {
+    drawPose(results, ctx, canvas, video);
+    if (results.poseLandmarks) {
+      // 毎秒1フレーム記録
+      if (frameArray.length === 0 || Math.abs(video.currentTime - lastTime) > 1) {
+        frameArray.push({landmarks: JSON.parse(JSON.stringify(results.poseLandmarks)), time: video.currentTime});
+        lastTime = video.currentTime;
+      }
+    }
+  });
+
   function process() {
     if (video.paused || video.ended || video.readyState < 2) return;
     pose.send({image: video});
     requestAnimationFrame(process);
   }
-  pose.onResults(results => {
-    drawPose(results, ctx, canvas, video);
-    if (results.poseLandmarks) {
-      // 毎秒1フレーム記録する例
-      if (frameArray.length === 0 || video.currentTime - frameArray[frameArray.length-1].time > 1) {
-        frameArray.push({landmarks: JSON.parse(JSON.stringify(results.poseLandmarks)), time: video.currentTime});
-      }
-    }
-  });
   process();
 }
 
@@ -53,6 +53,8 @@ document.getElementById('video1Input').addEventListener('change', e => {
   if (file) {
     video1.src = URL.createObjectURL(file);
     referencePoseFrames = [];
+    video1.load();
+    video1.play().catch(() => {});
   }
 });
 document.getElementById('video2Input').addEventListener('change', e => {
@@ -60,17 +62,21 @@ document.getElementById('video2Input').addEventListener('change', e => {
   if (file) {
     video2.src = URL.createObjectURL(file);
     targetPoseFrames = [];
+    video2.load();
+    video2.play().catch(() => {});
   }
 });
 
-// 動画再生時に骨格取得
 video1.addEventListener('play', () => processVideo(video1, pose1, referencePoseFrames, canvas1));
 video2.addEventListener('play', () => processVideo(video2, pose2, targetPoseFrames, canvas2));
+
+// スマホ自動再生対応（ユーザー操作必須なのでファイル選択時即play）
+video1.addEventListener('loadeddata', () => { video1.play().catch(() => {}); });
+video2.addEventListener('loadeddata', () => { video2.play().catch(() => {}); });
 
 // 比較ボタンでAIアドバイス
 compareBtn.addEventListener('click', async () => {
   adviceArea.innerText = "AIによるアドバイス生成中...";
-  // 一番近いフレーム同士で比較（例: お手本最終フレーム と 比較動画最終フレーム）
   if (referencePoseFrames.length === 0 || targetPoseFrames.length === 0) {
     adviceArea.innerText = "両方の動画を再生してください";
     return;
@@ -79,11 +85,4 @@ compareBtn.addEventListener('click', async () => {
   const tarLm = targetPoseFrames[targetPoseFrames.length-1].landmarks;
   const advice = await getAdviceFromGemini(refLm, tarLm);
   adviceArea.innerText = advice;
-});
-
-// モバイル対応: ユーザー操作で再生できない場合の対応
-[video1, video2].forEach(v => {
-  v.addEventListener('loadeddata', () => {
-    v.play().catch(() => {}); // ユーザー操作で再生できない場合は無音自動再生（仕様上mute推奨）
-  });
 });
