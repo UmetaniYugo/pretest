@@ -10,6 +10,7 @@ const compareBtn = document.getElementById('compareBtn');
 let referencePoseFrames = [];
 let targetPoseFrames = [];
 
+// MediaPipe Poseインスタンス
 const pose1 = new window.Pose({locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.4/${file}`});
 pose1.setOptions({modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5});
 const pose2 = new window.Pose({locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.4/${file}`});
@@ -52,8 +53,9 @@ document.getElementById('video1Input').addEventListener('change', e => {
   if (file) {
     video1.src = URL.createObjectURL(file);
     referencePoseFrames = [];
+    video1.style.display = 'block';
+    canvas1.style.display = 'block';
     video1.load();
-    video1.play().catch(() => {});
   }
 });
 document.getElementById('video2Input').addEventListener('change', e => {
@@ -61,18 +63,17 @@ document.getElementById('video2Input').addEventListener('change', e => {
   if (file) {
     video2.src = URL.createObjectURL(file);
     targetPoseFrames = [];
+    video2.style.display = 'block';
+    canvas2.style.display = 'block';
     video2.load();
-    video2.play().catch(() => {});
   }
 });
 
+// 再生イベントで骨格抽出開始
 video1.addEventListener('play', () => processVideo(video1, pose1, referencePoseFrames, canvas1));
 video2.addEventListener('play', () => processVideo(video2, pose2, targetPoseFrames, canvas2));
 
-// 再生できない場合の補助: ファイル選択後自動再生
-video1.addEventListener('loadeddata', () => { video1.play().catch(() => {}); });
-video2.addEventListener('loadeddata', () => { video2.play().catch(() => {}); });
-
+// compareボタンでAIアドバイス
 compareBtn.addEventListener('click', async () => {
   adviceArea.innerText = "AIによるアドバイス生成中...";
   if (referencePoseFrames.length === 0 || targetPoseFrames.length === 0) {
