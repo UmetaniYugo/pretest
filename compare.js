@@ -31,7 +31,6 @@ function processVideo(video, pose, frameArray, canvas) {
   pose.onResults(results => {
     drawPose(results, ctx, canvas, video);
     if (results.poseLandmarks) {
-      // 毎秒1フレーム記録
       if (frameArray.length === 0 || Math.abs(video.currentTime - lastTime) > 1) {
         frameArray.push({landmarks: JSON.parse(JSON.stringify(results.poseLandmarks)), time: video.currentTime});
         lastTime = video.currentTime;
@@ -70,11 +69,10 @@ document.getElementById('video2Input').addEventListener('change', e => {
 video1.addEventListener('play', () => processVideo(video1, pose1, referencePoseFrames, canvas1));
 video2.addEventListener('play', () => processVideo(video2, pose2, targetPoseFrames, canvas2));
 
-// スマホ自動再生対応（ユーザー操作必須なのでファイル選択時即play）
+// 再生できない場合の補助: ファイル選択後自動再生
 video1.addEventListener('loadeddata', () => { video1.play().catch(() => {}); });
 video2.addEventListener('loadeddata', () => { video2.play().catch(() => {}); });
 
-// 比較ボタンでAIアドバイス
 compareBtn.addEventListener('click', async () => {
   adviceArea.innerText = "AIによるアドバイス生成中...";
   if (referencePoseFrames.length === 0 || targetPoseFrames.length === 0) {
