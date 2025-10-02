@@ -59,7 +59,6 @@
       video, canvas { max-width: 98vw; }
       #adviceArea, .howto, .input-area { max-width: 98vw; width: 98vw; }
     }
-    /* input file label styling (better tap area on mobile) */
     .input-label {
       display: inline-block;
       padding: 0.7em 1.2em;
@@ -75,9 +74,7 @@
     .input-label:active {
       background: #008c9e;
     }
-    input[type="file"] {
-      display: none;
-    }
+    input[type="file"] { display: none; }
   </style>
 </head>
 <body>
@@ -107,7 +104,6 @@
     </div>
   </div>
   <div id="adviceArea">アドバイス表示エリア</div>
-  <!-- 必要なスクリプト -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.4/pose.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.4/drawing_utils.js"></script>
   <script type="module" src="./apiKey.js"></script>
