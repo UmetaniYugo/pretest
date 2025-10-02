@@ -6,16 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
-      margin: 0; padding: 0;
-      background: #111; color: #fff;
-      font-family: sans-serif;
-      display: flex; flex-direction: column; align-items: center;
-      min-height: 100vh;
+      margin: 0; padding: 0; background: #111; color: #fff;
+      font-family: sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh;
     }
     h2 { margin: 1em 0 0 0; }
     .howto {
-      background: #222; color: #fff;
-      padding: 0.5em 1em; border-radius: 8px; margin: 10px 0 20px 0;
+      background: #222; color: #fff; padding: 0.5em 1em; border-radius: 8px; margin: 10px 0 20px 0;
       font-size: 1em; width: 94vw; max-width: 600px;
     }
     .input-area {
@@ -24,33 +20,23 @@
       margin-bottom: 1em;
     }
     .video-wrapper {
-      width: 100vw; display: flex; flex-direction: row;
-      justify-content: center; gap: 1vw;
-      margin-bottom: 1em;
+      width: 100vw; display: flex; flex-direction: row; justify-content: center; gap: 1vw; margin-bottom: 1em;
     }
     .video-block {
       display: flex; flex-direction: column; align-items: center;
-      width: 45vw; max-width: 350px;
-      position: relative;
+      width: 45vw; max-width: 350px; position: relative;
     }
     video {
       width: 100%; max-width: 350px; border-radius: 8px; background: #222;
-      aspect-ratio: 16/9;
+      aspect-ratio: 16/9; margin-bottom: 4px;
     }
     canvas {
-      position: absolute;
-      top: 0; left: 0; pointer-events: none;
-      width: 100%; height: 100%;
-      max-width: 350px;
-      border-radius: 8px;
-      z-index: 2;
+      position: absolute; top: 0; left: 0; pointer-events: none;
+      width: 100%; height: 100%; max-width: 350px; border-radius: 8px; z-index: 2;
     }
     #adviceArea {
-      margin-top: 16px;
-      min-height: 2em;
-      background: #222; color: #fff;
-      border-radius: 8px; padding: 0.75em 1em;
-      font-size: 1.1em; width: 94vw; max-width: 600px;
+      margin-top: 16px; min-height: 2em; background: #222; color: #fff;
+      border-radius: 8px; padding: 0.75em 1em; font-size: 1.1em; width: 94vw; max-width: 600px;
       box-sizing: border-box; text-align: center;
     }
     @media (max-width: 700px) {
@@ -60,20 +46,11 @@
       #adviceArea, .howto, .input-area { max-width: 98vw; width: 98vw; }
     }
     .input-label {
-      display: inline-block;
-      padding: 0.7em 1.2em;
-      background: #00bcd4;
-      color: #fff;
-      border-radius: 8px;
-      margin: 0.3em;
-      cursor: pointer;
-      font-size: 1.1em;
-      border: none;
-      transition: background 0.2s;
+      display: inline-block; padding: 0.7em 1.2em;
+      background: #00bcd4; color: #fff; border-radius: 8px; margin: 0.3em;
+      cursor: pointer; font-size: 1.1em; border: none; transition: background 0.2s;
     }
-    .input-label:active {
-      background: #008c9e;
-    }
+    .input-label:active { background: #008c9e; }
     input[type="file"] { display: none; }
   </style>
 </head>
@@ -82,8 +59,9 @@
   <div class="howto">
     <b>使い方:</b><br>
     1. 左に「お手本動画」、右に「比較したい動画」をアップロードしてください。<br>
-    2. 動画が再生されると骨格モデルが自動表示され、<br>
-    3. 比較結果に基づきAIアドバイスが表示されます。<br>
+    2. 動画が表示されるので、再生ボタンで動画を再生できます。<br>
+    3. 骨格モデルが動画上に自動表示され、<br>
+    4. 比較結果に基づきAIアドバイスが表示されます。<br>
     <span style="color: #00bcd4;">アドバイスはGemini AIによる自動生成です。</span>
   </div>
   <div class="input-area">
