@@ -19,9 +19,16 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     #adviceArea { margin-top:16px; min-height:2em; background:#222; color:#fff; border-radius:8px; padding:0.75em 1em; font-size:1.05em; width:94vw; max-width:680px; box-sizing:border-box; text-align:center; }
     #diagnostics { margin-top:12px; width:94vw; max-width:680px; background:#0e0e0e; border:1px solid #333; padding:0.75em; border-radius:8px; color:#ddd; font-size:0.9em; max-height:220px; overflow:auto; white-space:pre-wrap; }
-    .input-label { display:inline-block; padding:0.7em 1.2em; background:#00bcd4; color:#fff; border-radius:8px; margin:0.3em; cursor:pointer; font-size:1.05em; transition:background 0.2s; }
+    .input-label { display:inline-block; padding:0.7em 1.2em; background:#00bcd4; color:#fff; border-radius:8px; margin:0.3em; cursor:pointer; font-size:1.05em; transition:background 0.2s; position:relative; overflow:hidden; }
     .input-label:active { background:#008c9e; }
-    input[type="file"] { display:none; }
+    /* ← ここを display:none から変更：input をラベル内に入れて隠す方式にする */
+    .input-label input[type="file"]{
+      position: absolute;
+      left:0; top:0;
+      width:100%; height:100%;
+      opacity: 0;
+      cursor: pointer;
+    }
     button#compareBtn { margin-top:0.6em; padding:0.6em 1em; background:#2196f3; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:1em; }
     @media (max-width:700px) { .video-wrapper { flex-direction:column; gap:3vw; align-items:center; } .video-block{ width:98vw; max-width:98vw;} video,canvas{ max-width:98vw;} #adviceArea,#diagnostics,.howto,.input-area{ max-width:98vw;width:98vw;} }
   </style>
@@ -40,13 +47,16 @@
   </div>
 
   <div class="input-area">
-    <label for="video1Input" class="input-label">お手本動画を選択</label>
-    <input type="file" id="video1Input" accept="video/mp4,video/quicktime,video/*">
+    <!-- label 内に input を含める構造に変更 -->
+    <label class="input-label">お手本動画を選択
+      <input type="file" id="video1Input" accept="video/mp4,video/quicktime,video/*">
+    </label>
     <div class="filename" id="video1Name"></div>
     <div class="status" id="video1Status"></div>
 
-    <label for="video2Input" class="input-label">比較動画を選択</label>
-    <input type="file" id="video2Input" accept="video/mp4,video/quicktime,video/*">
+    <label class="input-label">比較動画を選択
+      <input type="file" id="video2Input" accept="video/mp4,video/quicktime,video/*">
+    </label>
     <div class="filename" id="video2Name"></div>
     <div class="status" id="video2Status"></div>
 
