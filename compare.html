@@ -26,8 +26,9 @@
     .filename {
       color: #00bcd4;
       font-size: 0.95em;
-      margin-bottom: 0.5em;
+      margin-bottom: 0.25em;
       min-height: 1.3em;
+      word-break: break-word;
     }
     .video-wrapper {
       width: 100vw; display: flex; flex-direction: row;
@@ -53,6 +54,25 @@
       z-index: 2;
       display: none;
     }
+    .status {
+      margin-top: 6px;
+      font-size: 0.9em;
+      color: #ddd;
+      min-height: 1.2em;
+      text-align: center;
+    }
+    .loader {
+      display: inline-block;
+      width: 18px; height: 18px;
+      border: 3px solid rgba(255,255,255,0.15);
+      border-top-color: #00bcd4;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     #adviceArea {
       margin-top: 16px;
       min-height: 2em;
@@ -83,6 +103,16 @@
       background: #008c9e;
     }
     input[type="file"] { display: none; }
+    button#compareBtn {
+      margin-top: 0.6em;
+      padding: 0.6em 1em;
+      background: #2196f3;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1em;
+    }
   </style>
 </head>
 <body>
@@ -90,20 +120,25 @@
   <div class="howto">
     <b>使い方:</b><br>
     1. 左に「お手本動画」、右に「比較したい動画」をアップロードしてください。<br>
-    2. 動画が表示されるので、再生ボタンで動画を再生できます。<br>
-    3. 骨格モデルが動画上に自動表示され、<br>
-    4. 比較結果に基づきAIアドバイスが表示されます。<br>
-    <span style="color: #00bcd4;">アドバイスはGemini AIによる自動生成です。</span>
+    2. ファイル名・形式・状態が表示されます。問題なければ動画の再生ボタンを押してください。<br>
+    3. 再生中に骨格モデルが表示されます。<br>
+    4. 比較ボタンでAIアドバイスを取得します。
   </div>
+
   <div class="input-area">
     <label for="video1Input" class="input-label" id="video1Label">お手本動画を選択</label>
     <input type="file" id="video1Input" accept="video/mp4,video/quicktime,video/*">
     <div class="filename" id="video1Name"></div>
+    <div class="status" id="video1Status"></div>
+
     <label for="video2Input" class="input-label" id="video2Label">比較動画を選択</label>
     <input type="file" id="video2Input" accept="video/mp4,video/quicktime,video/*">
     <div class="filename" id="video2Name"></div>
+    <div class="status" id="video2Status"></div>
+
     <button id="compareBtn">動画比較してAIアドバイス表示</button>
   </div>
+
   <div class="video-wrapper">
     <div class="video-block">
       <video id="video1" controls playsinline muted preload="auto"></video>
@@ -114,7 +149,9 @@
       <canvas id="canvas2"></canvas>
     </div>
   </div>
+
   <div id="adviceArea">アドバイス表示エリア</div>
+
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.4/pose.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.4/drawing_utils.js"></script>
   <script type="module" src="./apiKey.js"></script>
