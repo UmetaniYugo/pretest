@@ -8,10 +8,15 @@
     body{background:#111;color:#fff;font-family:sans-serif;padding:16px;}
     .log{white-space:pre-wrap;background:#000;border:1px solid #333;padding:8px;border-radius:6px;max-height:300px;overflow:auto}
     video{display:block;width:320px;height:auto;margin-top:8px;background:#222;border-radius:6px}
+    label.input-label{
+      display:inline-block;padding:10px 14px;background:#00bcd4;color:#fff;border-radius:6px;cursor:pointer;
+    }
+    input[type=file]{display:block;margin-top:8px;}
   </style>
 </head>
 <body>
   <h3>デバッグ用：動画アップロード確認</h3>
+  <label class="input-label" for="file">動画を選択</label>
   <input id="file" type="file" accept="video/*"><br>
   <div id="info"></div>
   <video id="video" controls playsinline muted></video>
