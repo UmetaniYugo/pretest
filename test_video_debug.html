@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <title>Upload Debug Test</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body{background:#111;color:#fff;font-family:sans-serif;padding:16px;}
+    .log{white-space:pre-wrap;background:#000;border:1px solid #333;padding:8px;border-radius:6px;max-height:300px;overflow:auto}
+    video{display:block;width:320px;height:auto;margin-top:8px;background:#222;border-radius:6px}
+  </style>
+</head>
+<body>
+  <h3>デバッグ用：動画アップロード確認</h3>
+  <input id="file" type="file" accept="video/*"><br>
+  <div id="info"></div>
+  <video id="video" controls playsinline muted></video>
+  <h4>診断ログ</h4>
+  <div id="log" class="log">ログ開始</div>
+
+<script>
+const fileInput = document.getElementById('file');
+const info = document.getElementById('info');
+const logEl = document.getElementById('log');
+const video = document.getElementById('video');
+
+function log(msg, level='info'){
+  const t = new Date().toISOString().replace('T',' ').replace(/\..+/, '');
+  logEl.textContent = `${t} [${level}] ${msg}\n\n` + logEl.textContent;
+  if(level==='error') console.error(msg); else console.log(msg);
+}
+
+fileInput.addEventListener('change', async (e) => {
+  try{
+    log('change event 発火');
+    const f = e.target.files && e.target.files[0];
+    if(!f){ log('ファイル未選択', 'warn'); info.textContent = 'ファイル未選択'; return; }
+    info.textContent = `selected: ${f.name} (${f.type || 'no-type'}, ${Math.round(f.size/1024)} KB)`;
+    log(`選択: name=${f.name} type=${f.type} size=${f.size}`);
+
+    // try createObjectURL
+    try{
+      const url = URL.createObjectURL(f);
+      log('createObjectURL 成功: ' + url);
+      video.src = url;
+      // remember to revoke later if needed
+    } catch (err) {
+      log('createObjectURL 失敗: ' + err.message, 'warn');
+      // fallback FileReader
+      await new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => {
+          try{
+            video.src = fr.result;
+            log('FileReader 成功（dataURL）');
+            resolve();
+          } catch(e){ log('FileReader 設定失敗: ' + e.message, 'error'); reject(e); }
+        };
+        fr.onerror = () => { log('FileReader エラー', 'error'); reject(new Error('FileReader error')); };
+        fr.readAsDataURL(f);
+      });
+    }
+
+    // force load and listen events
+    video.load();
+    log('video.load() 呼び出し');
+
+    const onMeta = () => {
+      log(`loadedmetadata: videoWidth=${video.videoWidth} videoHeight=${video.videoHeight}`);
+    };
+    const onData = () => { log('loadeddata イベント'); };
+    const onCanPlay = () => { log('canplay イベント'); };
+    const onError = () => {
+      const e = video.error;
+      log('video.error: code=' + (e ? e.code : 'none'), 'error');
+    };
+
+    video.addEventListener('loadedmetadata', onMeta, { once:true });
+    video.addEventListener('loadeddata', onData, { once:true });
+    video.addEventListener('canplay', onCanPlay, { once:true });
+    video.addEventListener('error', onError, { once:true });
+
+    // try to play and catch promise rejection
+    try {
+      const p = video.play();
+      if(p && typeof p.then === 'function') {
+        p.then(()=> log('video.play promise resolved'))
+         .catch(err=> log('video.play promise rejected: ' + (err?.message||err), 'error'));
+      } else {
+        log('video.play returned non-promise (legacy)');
+      }
+    } catch (e) {
+      log('video.play 呼び出しで例外: ' + (e.message||e), 'error');
+    }
+
+  } catch (e) {
+    log('change handler 例外: ' + (e.message||e), 'error');
+  }
+});
+</script>
+</body>
+</html>
