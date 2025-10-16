@@ -5,59 +5,47 @@
   <title>動作比較モード</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body {
-      margin: 0; padding: 0;
-      background: #111; color: #fff;
-      font-family: sans-serif;
-      display: flex; flex-direction: column; align-items: center;
-      min-height: 100vh;
-    }
-    h2 { margin: 1em 0 0 0; }
-    .howto {
-      background: #222; color: #fff;
-      padding: 0.5em 1em; border-radius: 8px; margin: 10px 0 20px 0;
-      font-size: 1em; width: 94vw; max-width: 600px;
-    }
-    .input-area {
-      width: 94vw; max-width: 600px;
-      display: flex; flex-direction: column; align-items: center; gap: 0.5em;
-      margin-bottom: 1em;
-    }
-    .filename { color: #00bcd4; font-size: 0.95em; margin-bottom: 0.25em; min-height: 1.3em; word-break: break-word; }
-    .video-wrapper { width: 100vw; display: flex; justify-content: center; gap: 1vw; margin-bottom: 1em; }
-    .video-block { display: flex; flex-direction: column; align-items: center; width: 45vw; max-width: 350px; position: relative; }
-    video { width: 100%; max-width: 350px; border-radius: 8px; background: #222; aspect-ratio: 16/9; display: none; }
-    canvas { position: absolute; top: 0; left: 0; pointer-events: none; width: 100%; height: 100%; max-width: 350px; border-radius: 8px; z-index: 2; display: none; }
-    .status { margin-top: 6px; font-size: 0.9em; color: #ddd; min-height: 1.2em; text-align: center; }
-    .loader { display: inline-block; width: 18px; height: 18px; border: 3px solid rgba(255,255,255,0.15); border-top-color: #00bcd4; border-radius: 50%; animation: spin 1s linear infinite; vertical-align: middle; margin-left: 8px; }
+    body { margin:0; padding:0; background:#111; color:#fff; font-family:sans-serif; display:flex; flex-direction:column; align-items:center; min-height:100vh; }
+    h2 { margin:1em 0 0 0; }
+    .howto { background:#222; color:#fff; padding:0.6em 1em; border-radius:8px; margin:10px 0 16px 0; font-size:0.95em; width:94vw; max-width:680px; }
+    .input-area { width:94vw; max-width:680px; display:flex; flex-direction:column; align-items:center; gap:0.5em; margin-bottom:1em; }
+    .filename { color:#00bcd4; font-size:0.95em; margin-bottom:0.25em; min-height:1.3em; word-break:break-word; }
+    .video-wrapper { width:100vw; display:flex; justify-content:center; gap:1vw; margin-bottom:1em; }
+    .video-block { display:flex; flex-direction:column; align-items:center; width:45vw; max-width:360px; position:relative; }
+    video { width:100%; max-width:360px; border-radius:8px; background:#222; aspect-ratio:16/9; display:none; }
+    canvas { position:absolute; top:0; left:0; pointer-events:none; width:100%; height:100%; max-width:360px; border-radius:8px; z-index:2; display:none; }
+    .status { margin-top:6px; font-size:0.9em; color:#ddd; min-height:1.2em; text-align:center; }
+    .loader { display:inline-block; width:18px; height:18px; border:3px solid rgba(255,255,255,0.15); border-top-color:#00bcd4; border-radius:50%; animation:spin 1s linear infinite; vertical-align:middle; margin-left:8px; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    #adviceArea { margin-top: 16px; min-height: 2em; background: #222; color: #fff; border-radius: 8px; padding: 0.75em 1em; font-size: 1.1em; width: 94vw; max-width: 600px; box-sizing: border-box; text-align: center; }
-    @media (max-width: 700px) { .video-wrapper { flex-direction: column; gap: 3vw; align-items: center; } .video-block { width: 98vw; max-width: 98vw; } video, canvas { max-width: 98vw; } #adviceArea, .howto, .input-area { max-width: 98vw; width: 98vw; } }
-    .input-label { display: inline-block; padding: 0.7em 1.2em; background: #00bcd4; color: #fff; border-radius: 8px; margin: 0.3em; cursor: pointer; font-size: 1.1em; border: none; transition: background 0.2s; }
-    .input-label:active { background: #008c9e; }
-    input[type="file"] { display: none; }
-    button#compareBtn { margin-top: 0.6em; padding: 0.6em 1em; background: #2196f3; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 1em; }
+    #adviceArea { margin-top:16px; min-height:2em; background:#222; color:#fff; border-radius:8px; padding:0.75em 1em; font-size:1.05em; width:94vw; max-width:680px; box-sizing:border-box; text-align:center; }
+    #diagnostics { margin-top:12px; width:94vw; max-width:680px; background:#0e0e0e; border:1px solid #333; padding:0.75em; border-radius:8px; color:#ddd; font-size:0.9em; max-height:220px; overflow:auto; white-space:pre-wrap; }
+    .input-label { display:inline-block; padding:0.7em 1.2em; background:#00bcd4; color:#fff; border-radius:8px; margin:0.3em; cursor:pointer; font-size:1.05em; transition:background 0.2s; }
+    .input-label:active { background:#008c9e; }
+    input[type="file"] { display:none; }
+    button#compareBtn { margin-top:0.6em; padding:0.6em 1em; background:#2196f3; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:1em; }
+    @media (max-width:700px) { .video-wrapper { flex-direction:column; gap:3vw; align-items:center; } .video-block{ width:98vw; max-width:98vw;} video,canvas{ max-width:98vw;} #adviceArea,#diagnostics,.howto,.input-area{ max-width:98vw;width:98vw;} }
   </style>
 </head>
 <body>
   <h2>動作比較モード</h2>
+
   <div class="howto">
-    <b>使い方:</b>
+    <b>使い方（改善版）:</b>
     <ol>
       <li>左に「お手本動画」、右に「比較したい動画」をアップロードしてください。</li>
-      <li>ファイル名・形式・状態が表示されます。問題なければ動画の再生ボタンを押してください。</li>
-      <li>再生中に骨格モデルが表示されます。</li>
-      <li>比較ボタンでAIアドバイスを取得します。</li>
+      <li>アップロード状態（ファイル名・タイプ・サイズ）と読み込みステータスが表示されます。</li>
+      <li>問題なければ動画の再生ボタンを押してください。再生中は骨格が表示されます。</li>
+      <li>問題があれば下の診断ログにエラー理由を表示します。</li>
     </ol>
   </div>
 
   <div class="input-area">
-    <label for="video1Input" class="input-label" id="video1Label">お手本動画を選択</label>
+    <label for="video1Input" class="input-label">お手本動画を選択</label>
     <input type="file" id="video1Input" accept="video/mp4,video/quicktime,video/*">
     <div class="filename" id="video1Name"></div>
     <div class="status" id="video1Status"></div>
 
-    <label for="video2Input" class="input-label" id="video2Label">比較動画を選択</label>
+    <label for="video2Input" class="input-label">比較動画を選択</label>
     <input type="file" id="video2Input" accept="video/mp4,video/quicktime,video/*">
     <div class="filename" id="video2Name"></div>
     <div class="status" id="video2Status"></div>
@@ -78,11 +66,14 @@
 
   <div id="adviceArea">アドバイス表示エリア</div>
 
+  <!-- 診断ログ -->
+  <div id="diagnostics" aria-live="polite">診断ログ：ここに詳細なエラー情報を表示します。</div>
+
   <!-- MediaPipe は静的読み込み -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.4/pose.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.4/drawing_utils.js"></script>
 
-  <!-- compare.js はモジュールでのみ読み込む（AI モジュールは必要時に動的 import） -->
+  <!-- compare.js はモジュールで読み込む -->
   <script type="module" src="./compare.js"></script>
 </body>
 </html>
