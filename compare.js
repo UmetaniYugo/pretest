@@ -1,6 +1,6 @@
 import { getAdviceFromGemini } from './aiAdvice.js';
 
-/* compare.js - canvas size and continuous draw loop improvements */
+/* compare.js - Mobile optimization & Fixes */
 
 const video1Input = document.getElementById('video1Input');
 const video2Input = document.getElementById('video2Input');
@@ -52,8 +52,8 @@ if (pose2) pose2.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDete
 const ctx1 = canvas1.getContext('2d');
 const ctx2 = canvas2.getContext('2d');
 
-// Robust draw loop function (DPR-aware)
-function startDrawLoop(video, canvas, ctxRef, label) {
+// Canvasリサイズ同期用ループ (描画はしない、サイズだけ合わせる)
+function startCanvasSyncLoop(video, canvas, ctxRef, label) {
   if (!video || !canvas) return () => { };
   if (!ctxRef.ctx) ctxRef.ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
@@ -61,23 +61,26 @@ function startDrawLoop(video, canvas, ctxRef, label) {
 
   function loop() {
     try {
-      if (!video.paused && !video.ended && video.readyState >= 2) {
-        const vw = video.videoWidth || Math.max(1, Math.round(video.clientWidth));
-        const vh = video.videoHeight || Math.max(1, Math.round(video.clientHeight));
-        canvas.width = Math.round(vw * dpr);
-        canvas.height = Math.round(vh * dpr);
-        canvas.style.width = `${vw}px`;
-        canvas.style.height = `${vh}px`;
-        ctxRef.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        try {
-          ctxRef.ctx.clearRect(0, 0, vw, vh);
-          ctxRef.ctx.drawImage(video, 0, 0, vw, vh);
-        } catch (e) {
-          addLog(`${label}: drawImage 例外: ${e.message || e}`, 'warn');
+      if (video.readyState >= 1) {
+        // ビデオ表示サイズに合わせる
+        const vw = video.videoWidth;
+        const vh = video.videoHeight;
+
+        // Canvasの内部解像度をビデオ解像度に合わせる
+        if (canvas.width !== vw || canvas.height !== vh) {
+          canvas.width = vw;
+          canvas.height = vh;
+          // CSSで見た目のサイズを合わせる必要はない（aspect-ratioで制御され、absoluteで重なるため）
+          // ただし、もしずれるようならここも調整
         }
+
+        // ここでの drawImage は行わない！ MediaPipeの描画と競合するため。
+        // 代わりに透明にする（必要なら clearRect）
+        // MediaPipeの描画は onResults で行われるので、ここでは何もしなくてよい
+        // ctxRef.ctx.clearRect(0, 0, canvas.width, canvas.height); // onResults側でクリアされるまで残すのでここでもクリアしない方がチラつかないかも？
       }
     } catch (e) {
-      addLog(`${label}: draw loop 例外: ${e.message || e}`, 'error');
+      addLog(`${label}: sync loop 例外: ${e.message || e}`, 'error');
     }
     rafId = requestAnimationFrame(loop);
   }
@@ -85,14 +88,19 @@ function startDrawLoop(video, canvas, ctxRef, label) {
   return () => { if (rafId) cancelAnimationFrame(rafId); };
 }
 
-function stopDrawLoop(rafRef) { if (rafRef && typeof rafRef === 'function') rafRef(); }
+function stopLoop(rafRef) { if (rafRef && typeof rafRef === 'function') rafRef(); }
 
 // overlay drawing using MediaPipe drawing_utils
 function drawPoseOverlay(results, ctx, canvas, video, label) {
+  // 毎回クリアして描画する
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
   if (!results.poseLandmarks) return;
   try {
-    window.drawConnectors(ctx, results.poseLandmarks, window.POSE_CONNECTIONS, { color: '#00FF00', lineWidth: 2 });
-    window.drawLandmarks(ctx, results.poseLandmarks, { color: '#FF0000', lineWidth: 2 });
+    // MediaPipeの描画ユーティリティを使用
+    // ビデオを描画せず、スケルトンだけ描く
+    window.drawConnectors(ctx, results.poseLandmarks, window.POSE_CONNECTIONS, { color: '#00FF00', lineWidth: 4 });
+    window.drawLandmarks(ctx, results.poseLandmarks, { color: '#FF0000', lineWidth: 4, radius: 2 });
   } catch (e) {
     addLog(`${label}: drawConnectors/drawLandmarks 例外: ${e.message || e}`, 'error');
   }
@@ -102,9 +110,8 @@ function recordLandmarks(results, frameArray, video) {
   if (!results.poseLandmarks) return;
   const now = video.currentTime || 0;
   const last = frameArray.length ? frameArray[frameArray.length - 1].time : -999;
-  if (frameArray.length === 0 || Math.abs(now - last) > 1) {
+  if (frameArray.length === 0 || Math.abs(now - last) > 0.1) { // 頻度を少し調整
     frameArray.push({ landmarks: JSON.parse(JSON.stringify(results.poseLandmarks)), time: now });
-    addLog(`ランドマーク記録: time=${now.toFixed(2)} (frames=${frameArray.length})`);
   }
 }
 
@@ -112,7 +119,6 @@ function recordLandmarks(results, frameArray, video) {
 if (pose1) {
   pose1.onResults(results => {
     try {
-      // if (!ctx1) { addLog('pose1.onResults: ctx1 未設定', 'warn'); return; } // Removed check as ctx1 is now const
       drawPoseOverlay(results, ctx1, canvas1, video1, '左');
       recordLandmarks(results, referencePoseFrames, video1);
     } catch (e) { addLog('pose1.onResults 例外: ' + (e.message || e), 'error'); }
@@ -121,7 +127,6 @@ if (pose1) {
 if (pose2) {
   pose2.onResults(results => {
     try {
-      // if (!ctx2) { addLog('pose2.onResults: ctx2 未設定', 'warn'); return; } // Removed check as ctx2 is now const
       drawPoseOverlay(results, ctx2, canvas2, video2, '右');
       recordLandmarks(results, targetPoseFrames, video2);
     } catch (e) { addLog('pose2.onResults 例外: ' + (e.message || e), 'error'); }
@@ -133,10 +138,12 @@ if (pose2) {
 // MediaPipeへのフレーム送信ループ
 function startPoseLoop(v, p) {
   let active = true;
-  function loop() {
+  async function loop() {
     if (!active) return;
-    if (!v.paused && !v.ended && p) {
-      p.send({ image: v }).catch(e => console.error(e));
+    if (!v.paused && !v.ended && v.readyState >= 2 && p) {
+      try {
+        await p.send({ image: v });
+      } catch (e) { console.error(e); }
     }
     if (active) requestAnimationFrame(loop);
   }
@@ -146,46 +153,37 @@ function startPoseLoop(v, p) {
 
 function handleFileSelect(event, videoEl, canvasEl, videoNameEl, videoStatusEl, urlManager, pose, ctx, label, setStopLoop) {
   const file = event.target.files && event.target.files[0];
-  if (!file) {
-    addLog('ファイルが選択されていません', 'warn');
-    return;
-  }
+  if (!file) return;
 
-  // 既存のループがあれば停止
-  if (setStopLoop && typeof setStopLoop.get === 'function') {
-    const currentStop = setStopLoop.get();
-    if (currentStop) currentStop();
+  // 既存ループ停止
+  if (setStopLoop && setStopLoop.get && setStopLoop.get()) {
+    setStopLoop.get()();
   }
 
   videoNameEl.textContent = file.name;
   videoStatusEl.textContent = '読み込み中...';
-  addLog(`ファイル選択: ${file.name} (${Math.round(file.size / 1024)}KB)`);
 
+  const url = URL.createObjectURL(file);
+  urlManager.set(url);
+
+  // イベントハンドラ設定 (src代入前)
   videoEl.onloadedmetadata = () => {
-    videoStatusEl.textContent = `準備完了 (${videoEl.videoWidth}x${videoEl.videoHeight}, ${videoEl.duration.toFixed(1)}s)`;
+    videoStatusEl.innerHTML = `準備完了<br><small>(${videoEl.videoWidth}x${videoEl.videoHeight}, ${videoEl.duration.toFixed(0)}s)</small>`;
     addLog(`動画ロード成功: ${file.name}`);
 
-    // 表示して再生開始
     videoEl.style.display = 'block';
     canvasEl.style.display = 'block';
 
-    // 再生試行
-    const playPromise = videoEl.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(e => {
-        addLog(`自動再生エラー: ${e.message}`, 'warn');
-        // 自動再生ポリシーに引っかかった場合でも表示は維持
-      });
-    }
+    // 自動再生
+    videoEl.play().catch(e => addLog(`自動再生保留: ${e.message}`, 'info'));
 
     // ループ開始
-    const stopDraw = startDrawLoop(videoEl, canvasEl, { ctx: ctx }, label);
+    const stopSync = startCanvasSyncLoop(videoEl, canvasEl, { ctx: ctx }, label);
     const stopPose = startPoseLoop(videoEl, pose);
 
-    // 停止用関数を保存
     if (setStopLoop) {
-      setStopLoop(() => {
-        stopDraw();
+      setStopLoop.set(() => {
+        stopSync();
         stopPose();
       });
     }
@@ -193,86 +191,83 @@ function handleFileSelect(event, videoEl, canvasEl, videoNameEl, videoStatusEl, 
 
   videoEl.onerror = () => {
     videoStatusEl.textContent = 'エラー';
-    addLog(`動画ロードエラー: ${videoEl.error ? videoEl.error.message : '詳細不明'}`, 'error');
+    addLog(`Load Error: ${videoEl.error ? videoEl.error.message : ''}`, 'error');
   };
-
-  const url = URL.createObjectURL(file);
-  urlManager.set(url);
 
   videoEl.src = url;
   videoEl.load();
 }
 
-// stopLoop変数の管理用ヘルパー
+// ループ管理
 const loopManager1 = { val: null, get() { return this.val; }, set(fn) { this.val = fn; } };
 const loopManager2 = { val: null, get() { return this.val; }, set(fn) { this.val = fn; } };
 
-video1Input.addEventListener('change', (e) => handleFileSelect(e, video1, canvas1, video1Name, video1Status, objectURLManager1, pose1, ctx1, 'Left', (fn) => loopManager1.set(fn)));
-loopManager1.get = () => loopManager1.val; // getメソッドを明示的に確保(一行目で定義済みだが念のため)
-
-video2Input.addEventListener('change', (e) => handleFileSelect(e, video2, canvas2, video2Name, video2Status, objectURLManager2, pose2, ctx2, 'Right', (fn) => loopManager2.set(fn)));
-loopManager2.get = () => loopManager2.val;
+video1Input.addEventListener('change', (e) => handleFileSelect(e, video1, canvas1, video1Name, video1Status, objectURLManager1, pose1, ctx1, 'Left', loopManager1));
+video2Input.addEventListener('change', (e) => handleFileSelect(e, video2, canvas2, video2Name, video2Status, objectURLManager2, pose2, ctx2, 'Right', loopManager2));
 
 // --- 比較・再生処理 ---
 
-// グローバルの変数としては不要になったが、互換性のため残すか、loopManagerを使う
-// 下記 compareBtn 内で loopManager1.val を stopLoop1 の代わりに使う
-
 compareBtn.addEventListener('click', async (e) => {
-  e.preventDefault(); // フォーム送信などを防止
-  if (!video1.src || !video2.src) {
-    alert('両方の動画を選択してください');
+  e.preventDefault();
+  if (!video1.src || !video2.src || video1.style.display === 'none' || video2.style.display === 'none') {
+    alert('両方の動画をアップロードしてください');
     return;
   }
 
-  addLog('比較開始: 動画再生');
+  // UIフィードバック
+  compareBtn.disabled = true;
+  compareBtn.textContent = '処理中...';
+  adviceArea.textContent = '再生準備中...';
+  adviceArea.style.background = '#455a64';
+
+  addLog('比較モード開始');
 
   // 既存ループ停止
   if (loopManager1.val) loopManager1.val();
   if (loopManager2.val) loopManager2.val();
 
-  // データのクリア
   referencePoseFrames = [];
   targetPoseFrames = [];
-  adviceArea.textContent = '解析・再生中...';
-  adviceArea.style.background = '#333';
 
-  // 動画再生 (頭出し)
+  // 先頭へ
   video1.currentTime = 0;
   video2.currentTime = 0;
+
   try {
     await Promise.all([video1.play(), video2.play()]);
   } catch (e) {
     addLog('再生開始エラー: ' + e.message, 'error');
+    compareBtn.disabled = false;
+    compareBtn.textContent = '動画比較してAIアドバイス表示';
     return;
   }
 
-  // 描画ループ開始
-  const sd1 = startDrawLoop(video1, canvas1, { ctx: ctx1 }, 'Left');
-  const sd2 = startDrawLoop(video2, canvas2, { ctx: ctx2 }, 'Right');
+  // ループ再開
+  const s1 = startCanvasSyncLoop(video1, canvas1, { ctx: ctx1 }, 'Left');
+  const s2 = startCanvasSyncLoop(video2, canvas2, { ctx: ctx2 }, 'Right');
+  const p1 = startPoseLoop(video1, pose1);
+  const p2 = startPoseLoop(video2, pose2);
 
-  // MediaPipeへのフレーム送信ループ
-  const sp1 = startPoseLoop(video1, pose1);
-  const sp2 = startPoseLoop(video2, pose2);
-
-  // 停止関数を更新
-  loopManager1.set(() => { sd1(); sp1(); });
-  loopManager2.set(() => { sd2(); sp2(); });
+  loopManager1.set(() => { s1(); p1(); });
+  loopManager2.set(() => { s2(); p2(); });
 });
 
-// 再生終了時の処理（両方終わったらアドバイス）
+// 再生終了監視
 let endedCount = 0;
 function onVideoEnded() {
   endedCount++;
-  if (endedCount >= 2) {
-    addLog('再生終了。AIアドバイスを取得します...');
+  if (endedCount >= 2) { // 簡易判定: 両方終わったら
+    addLog('両動画再生終了。解析開始...');
+
+    // ループ停止
     if (loopManager1.val) loopManager1.val();
     if (loopManager2.val) loopManager2.val();
-    endedCount = 0; // reset
 
-    adviceArea.textContent = 'Gemini AIに問い合わせ中...';
+    endedCount = 0;
 
-    // 少し待ってから実行（最後のフレーム処理待ちなど）
+    // AIアドバイス
+    adviceArea.textContent = 'Gemini AIが骨格を分析中...';
+
     setTimeout(async () => {
       try {
         const advice = await getAdviceFromGemini(
@@ -280,12 +275,13 @@ function onVideoEnded() {
           targetPoseFrames.map(f => f.landmarks)
         );
         adviceArea.textContent = advice;
-        adviceArea.style.background = '#004d40'; // 成功色
-        addLog('アドバイス取得成功');
+        adviceArea.style.background = '#00695c';
       } catch (e) {
-        adviceArea.textContent = 'エラー: ' + e.message;
-        adviceArea.style.background = '#4a1414'; // エラー色
-        addLog('アドバイス取得エラー: ' + e.message, 'error');
+        adviceArea.textContent = 'アドバイス取得失敗: ' + e.message;
+        adviceArea.style.background = '#b71c1c';
+      } finally {
+        compareBtn.disabled = false;
+        compareBtn.textContent = '動画比較してAIアドバイス表示';
       }
     }, 500);
   }
