@@ -161,12 +161,6 @@ function handleFileSelect(event, videoEl, canvasEl, videoNameEl, videoStatusEl, 
   videoStatusEl.textContent = '読み込み中...';
   addLog(`ファイル選択: ${file.name} (${Math.round(file.size / 1024)}KB)`);
 
-  const url = URL.createObjectURL(file);
-  urlManager.set(url);
-
-  videoEl.src = url;
-  videoEl.load();
-
   videoEl.onloadedmetadata = () => {
     videoStatusEl.textContent = `準備完了 (${videoEl.videoWidth}x${videoEl.videoHeight}, ${videoEl.duration.toFixed(1)}s)`;
     addLog(`動画ロード成功: ${file.name}`);
@@ -174,7 +168,15 @@ function handleFileSelect(event, videoEl, canvasEl, videoNameEl, videoStatusEl, 
     // 表示して再生開始
     videoEl.style.display = 'block';
     canvasEl.style.display = 'block';
-    videoEl.play().catch(e => addLog(`自動再生エラー: ${e.message}`, 'warn'));
+
+    // 再生試行
+    const playPromise = videoEl.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(e => {
+        addLog(`自動再生エラー: ${e.message}`, 'warn');
+        // 自動再生ポリシーに引っかかった場合でも表示は維持
+      });
+    }
 
     // ループ開始
     const stopDraw = startDrawLoop(videoEl, canvasEl, { ctx: ctx }, label);
@@ -193,6 +195,12 @@ function handleFileSelect(event, videoEl, canvasEl, videoNameEl, videoStatusEl, 
     videoStatusEl.textContent = 'エラー';
     addLog(`動画ロードエラー: ${videoEl.error ? videoEl.error.message : '詳細不明'}`, 'error');
   };
+
+  const url = URL.createObjectURL(file);
+  urlManager.set(url);
+
+  videoEl.src = url;
+  videoEl.load();
 }
 
 // stopLoop変数の管理用ヘルパー
@@ -210,7 +218,8 @@ loopManager2.get = () => loopManager2.val;
 // グローバルの変数としては不要になったが、互換性のため残すか、loopManagerを使う
 // 下記 compareBtn 内で loopManager1.val を stopLoop1 の代わりに使う
 
-compareBtn.addEventListener('click', async () => {
+compareBtn.addEventListener('click', async (e) => {
+  e.preventDefault(); // フォーム送信などを防止
   if (!video1.src || !video2.src) {
     alert('両方の動画を選択してください');
     return;
