@@ -5,32 +5,90 @@
   <title>動作比較モード</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { margin:0; padding:0; background:#111; color:#fff; font-family:sans-serif; display:flex; flex-direction:column; align-items:center; min-height:100vh; }
-    h2 { margin:1em 0 0 0; }
-    .howto { background:#222; color:#fff; padding:0.6em 1em; border-radius:8px; margin:10px 0 16px 0; font-size:0.95em; width:94vw; max-width:680px; }
-    .input-area { width:94vw; max-width:680px; display:flex; flex-direction:column; align-items:center; gap:0.5em; margin-bottom:1em; }
-    .filename { color:#00bcd4; font-size:0.95em; margin-bottom:0.25em; min-height:1.3em; word-break:break-word; }
-    .video-wrapper { width:100vw; display:flex; justify-content:center; gap:1vw; margin-bottom:1em; }
-    .video-block { display:flex; flex-direction:column; align-items:center; width:45vw; max-width:360px; position:relative; }
-    video { width:100%; max-width:360px; border-radius:8px; background:#222; aspect-ratio:16/9; display:none; }
-    canvas { position:absolute; top:0; left:0; pointer-events:none; width:100%; height:100%; max-width:360px; border-radius:8px; z-index:2; display:none; }
-    .status { margin-top:6px; font-size:0.9em; color:#ddd; min-height:1.2em; text-align:center; }
-    .loader { display:inline-block; width:18px; height:18px; border:3px solid rgba(255,255,255,0.15); border-top-color:#00bcd4; border-radius:50%; animation:spin 1s linear infinite; vertical-align:middle; margin-left:8px; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    #adviceArea { margin-top:16px; min-height:2em; background:#222; color:#fff; border-radius:8px; padding:0.75em 1em; font-size:1.05em; width:94vw; max-width:680px; box-sizing:border-box; text-align:center; }
-    #diagnostics { margin-top:12px; width:94vw; max-width:680px; background:#0e0e0e; border:1px solid #333; padding:0.75em; border-radius:8px; color:#ddd; font-size:0.9em; max-height:220px; overflow:auto; white-space:pre-wrap; }
-    .input-label { display:inline-block; padding:0.7em 1.2em; background:#00bcd4; color:#fff; border-radius:8px; margin:0.3em; cursor:pointer; font-size:1.05em; transition:background 0.2s; position:relative; overflow:hidden; }
-    .input-label:active { background:#008c9e; }
-    /* ← ここを display:none から変更：input をラベル内に入れて隠す方式にする */
-    .input-label input[type="file"]{
-      position: absolute;
-      left:0; top:0;
-      width:100%; height:100%;
-      opacity: 0;
-      cursor: pointer;
+    /* Mobile-first CSS */
+    body { margin:0; padding:0; background:#111; color:#fff; font-family:sans-serif; display:flex; flex-direction:column; align-items:center; min-height:100vh; padding-bottom: 50px; }
+    h2 { margin:1em 0 0.5em 0; font-size: 1.5rem; text-align: center; }
+    
+    .howto { background:#222; color:#ccc; padding:1em; border-radius:8px; margin:0 0 16px 0; font-size:0.9rem; width:90%; max-width:800px; line-height: 1.4; }
+    .howto ol { padding-left: 1.2em; margin: 0.5em 0 0 0; }
+    .howto li { margin-bottom: 0.3em; }
+
+    .input-area { width:95%; max-width:800px; display:flex; flex-direction:column; align-items:center; gap:0.8em; margin-bottom:1em; }
+    
+    /* File input styling */
+    .file-input-group { display: flex; flex-direction: column; align-items: center; width: 100%; margin-bottom: 0.5em; }
+    .input-label { 
+      display:flex; align-items:center; justify-content:center;
+      width: 100%; max-width: 400px; height: 3em;
+      background:#00bcd4; color:#fff; border-radius:8px; 
+      cursor:pointer; font-size:1rem; font-weight: bold;
+      transition:background 0.2s; position:relative; overflow:hidden;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
-    button#compareBtn { margin-top:0.6em; padding:0.6em 1em; background:#2196f3; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:1em; }
-    @media (max-width:700px) { .video-wrapper { flex-direction:column; gap:3vw; align-items:center; } .video-block{ width:98vw; max-width:98vw;} video,canvas{ max-width:98vw;} #adviceArea,#diagnostics,.howto,.input-area{ max-width:98vw;width:98vw;} }
+    .input-label:active { background:#008c9e; transform: translateY(1px); }
+    .input-label input[type="file"] { position: absolute; left:0; top:0; width:100%; height:100%; opacity: 0; cursor: pointer; }
+    
+    .status-line { display: flex; flex-direction: column; align-items: center; width: 100%; gap: 2px; margin-top: 4px; }
+    .filename { color:#00e5ff; font-size:0.9em; word-break:break-all; text-align: center; }
+    .status { font-size:0.85em; color:#bbb; text-align:center; }
+
+    /* Compare button */
+    button#compareBtn { 
+      margin-top:0.5em; width: 100%; max-width: 400px; height: 3.5em;
+      background:#2196f3; color:#fff; border:none; border-radius:8px; 
+      cursor:pointer; font-size:1.1rem; font-weight: bold;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      transition: background 0.2s;
+    }
+    button#compareBtn:active { background:#1976d2; transform: translateY(2px); }
+
+    /* Video Layout */
+    .video-wrapper { 
+      width:100%; display:flex; flex-direction:column; align-items:center; gap:1.5em; margin-bottom:1em; 
+    }
+    /* Larger screens: side by side */
+    @media (min-width: 768px) {
+      .video-wrapper { flex-direction: row; justify-content: center; align-items: flex-start; gap: 20px; }
+      .video-block { width: 45%; max-width: 480px; }
+    }
+
+    .video-block { 
+      position:relative; width:95%; max-width:100%; 
+      background: #000; border-radius: 8px; overflow: hidden;
+      aspect-ratio: 16/9; /* enforce aspect ratio to prevent layout jumps */
+      display: flex; justify-content: center; align-items: center;
+      border: 1px solid #333;
+    }
+    
+    video { 
+      width:100%; height:100%; 
+      object-fit: contain; /* ensure video fits within 16:9 box */
+      display:block; /* initially hidden by JS until loaded, but CSS can default to block if desired or handled by JS for 'none' */
+    }
+    
+    canvas { 
+      position:absolute; top:0; left:0; 
+      width:100%; height:100%;
+      pointer-events:none; 
+      z-index:10; 
+      /* visualization debug: border: 1px solid red; */
+    }
+
+    /* Info Areas */
+    #adviceArea { 
+      margin-top:10px; width:95%; max-width:800px; 
+      background:#263238; color:#fff; border-radius:8px; 
+      padding:1em; font-size:1rem; line-height: 1.5;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    #diagnostics { 
+      margin-top:20px; width:95%; max-width:800px; 
+      background:#0e0e0e; border:1px solid #333; 
+      padding:0.75em; border-radius:8px; color:#aaa; 
+      font-size:0.8em; font-family: monospace;
+      max-height:150px; overflow-y:auto; white-space:pre-wrap; 
+    }
   </style>
 </head>
 <body>
