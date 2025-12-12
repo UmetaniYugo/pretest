@@ -1,3 +1,5 @@
+import { getAdviceFromGemini } from './aiAdvice.js';
+
 /* compare.js - canvas size and continuous draw loop improvements */
 
 const video1Input = document.getElementById('video1Input');
@@ -21,15 +23,15 @@ let targetPoseFrames = [];
 // objectURL 管理
 let currentObjectURL1 = null, currentObjectURL2 = null;
 const objectURLManager1 = {
-  set(url){ if (currentObjectURL1 && currentObjectURL1 !== url) try{ URL.revokeObjectURL(currentObjectURL1) }catch{} currentObjectURL1 = url },
-  revoke(){ if (currentObjectURL1) try{ URL.revokeObjectURL(currentObjectURL1) }catch{} currentObjectURL1 = null }
+  set(url) { if (currentObjectURL1 && currentObjectURL1 !== url) try { URL.revokeObjectURL(currentObjectURL1) } catch { } currentObjectURL1 = url },
+  revoke() { if (currentObjectURL1) try { URL.revokeObjectURL(currentObjectURL1) } catch { } currentObjectURL1 = null }
 };
 const objectURLManager2 = {
-  set(url){ if (currentObjectURL2 && currentObjectURL2 !== url) try{ URL.revokeObjectURL(currentObjectURL2) }catch{} currentObjectURL2 = url },
-  revoke(){ if (currentObjectURL2) try{ URL.revokeObjectURL(currentObjectURL2) }catch{} currentObjectURL2 = null }
+  set(url) { if (currentObjectURL2 && currentObjectURL2 !== url) try { URL.revokeObjectURL(currentObjectURL2) } catch { } currentObjectURL2 = url },
+  revoke() { if (currentObjectURL2) try { URL.revokeObjectURL(currentObjectURL2) } catch { } currentObjectURL2 = null }
 };
 
-function addLog(msg, level='info'){
+function addLog(msg, level = 'info') {
   const time = new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '');
   const prefix = level === 'error' ? '[ERROR]' : level === 'warn' ? '[WARN]' : '[INFO]';
   diagnosticsEl.textContent = `${time} ${prefix} ${msg}\n\n` + diagnosticsEl.textContent;
@@ -50,7 +52,7 @@ let ctx1 = null, ctx2 = null;
 
 // Robust draw loop function (DPR-aware)
 function startDrawLoop(video, canvas, ctxRef, label) {
-  if (!video || !canvas) return () => {};
+  if (!video || !canvas) return () => { };
   if (!ctxRef.ctx) ctxRef.ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   let rafId = null;
@@ -120,4 +122,115 @@ if (pose2) {
       if (!ctx2) { addLog('pose2.onResults: ctx2 未設定', 'warn'); return; }
       drawPoseOverlay(results, ctx2, canvas2, video2, '右');
       recordLandmarks(results, targetPoseFrames, video2);
+    } catch (e) { addLog('pose2.onResults 例外: ' + (e.message || e), 'error'); }
+  });
+}
+
+// --- 動画アップロード処理 ---
+
+function handleFileSelect(event, videoEl, videoNameEl, videoStatusEl, urlManager) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) {
+    addLog('ファイルが選択されていません', 'warn');
+    return;
+  }
+
+  videoNameEl.textContent = file.name;
+  videoStatusEl.textContent = '読み込み中...';
+  addLog(`ファイル選択: ${file.name} (${Math.round(file.size / 1024)}KB)`);
+
+  const url = URL.createObjectURL(file);
+  urlManager.set(url);
+
+  videoEl.src = url;
+  videoEl.load();
+
+  videoEl.onloadedmetadata = () => {
+    videoStatusEl.textContent = `準備完了 (${videoEl.videoWidth}x${videoEl.videoHeight}, ${videoEl.duration.toFixed(1)}s)`;
+    addLog(`動画ロード成功: ${file.name}`);
+  };
+
+  videoEl.onerror = () => {
+    videoStatusEl.textContent = 'エラー';
+    addLog(`動画ロードエラー: ${videoEl.error ? videoEl.error.message : '詳細不明'}`, 'error');
+  };
+}
+
+video1Input.addEventListener('change', (e) => handleFileSelect(e, video1, video1Name, video1Status, objectURLManager1));
+video2Input.addEventListener('change', (e) => handleFileSelect(e, video2, video2Name, video2Status, objectURLManager2));
+
+// --- 比較・再生処理 ---
+
+let stopLoop1 = null;
+let stopLoop2 = null;
+
+compareBtn.addEventListener('click', async () => {
+  if (!video1.src || !video2.src) {
+    alert('両方の動画を選択してください');
+    return;
+  }
+
+  addLog('比較開始: 動画再生');
+
+  // データのクリア
+  referencePoseFrames = [];
+  targetPoseFrames = [];
+  adviceArea.textContent = '解析・再生中...';
+  adviceArea.style.background = '#333';
+
+  // 動画再生
+  try {
+    await Promise.all([video1.play(), video2.play()]);
+  } catch (e) {
+    addLog('再生開始エラー: ' + e.message, 'error');
+    return;
+  }
+
+  // 描画ループ開始
+  stopLoop1 = startDrawLoop(video1, canvas1, { ctx: ctx1 }, 'Left');
+  stopLoop2 = startDrawLoop(video2, canvas2, { ctx: ctx2 }, 'Right');
+
+  // MediaPipeへのフレーム送信ループ
+  function sendToPose(v, p) {
+    if (!v.paused && !v.ended && p) {
+      p.send({ image: v }).catch(e => console.error(e));
+      requestAnimationFrame(() => sendToPose(v, p));
     }
+  }
+  sendToPose(video1, pose1);
+  sendToPose(video2, pose2);
+});
+
+// 再生終了時の処理（両方終わったらアドバイス）
+let endedCount = 0;
+function onVideoEnded() {
+  endedCount++;
+  if (endedCount >= 2) {
+    addLog('再生終了。AIアドバイスを取得します...');
+    stopDrawLoop(stopLoop1);
+    stopDrawLoop(stopLoop2);
+    endedCount = 0; // reset
+
+    adviceArea.textContent = 'Gemini AIに問い合わせ中...';
+
+    // 少し待ってから実行（最後のフレーム処理待ちなど）
+    setTimeout(async () => {
+      try {
+        const advice = await getAdviceFromGemini(
+          referencePoseFrames.map(f => f.landmarks),
+          targetPoseFrames.map(f => f.landmarks)
+        );
+        adviceArea.textContent = advice;
+        adviceArea.style.background = '#004d40'; // 成功色
+        addLog('アドバイス取得成功');
+      } catch (e) {
+        adviceArea.textContent = 'エラー: ' + e.message;
+        adviceArea.style.background = '#4a1414'; // エラー色
+        addLog('アドバイス取得エラー: ' + e.message, 'error');
+      }
+    }, 500);
+  }
+}
+
+video1.addEventListener('ended', onVideoEnded);
+video2.addEventListener('ended', onVideoEnded);
