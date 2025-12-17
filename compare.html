@@ -1,96 +1,243 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
   <meta charset="UTF-8">
   <title>動作比較モード</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     /* Mobile-first CSS */
-    body { margin:0; padding:0; background:#111; color:#fff; font-family:sans-serif; display:flex; flex-direction:column; align-items:center; min-height:100vh; padding-bottom: 50px; }
-    h2 { margin:1em 0 0.5em 0; font-size: 1.5rem; text-align: center; }
-    
-    .howto { background:#222; color:#ccc; padding:1em; border-radius:8px; margin:0 0 16px 0; font-size:0.9rem; width:90%; max-width:800px; line-height: 1.4; }
-    .howto ol { padding-left: 1.2em; margin: 0.5em 0 0 0; }
-    .howto li { margin-bottom: 0.3em; }
-
-    .input-area { width:95%; max-width:800px; display:flex; flex-direction:column; align-items:center; gap:0.8em; margin-bottom:1em; }
-    
-    /* File input styling */
-    .file-input-group { display: flex; flex-direction: column; align-items: center; width: 100%; margin-bottom: 0.5em; }
-    .input-label { 
-      display:flex; align-items:center; justify-content:center;
-      width: 100%; max-width: 400px; height: 3em;
-      background:#00bcd4; color:#fff; border-radius:8px; 
-      cursor:pointer; font-size:1rem; font-weight: bold;
-      transition:background 0.2s; position:relative; overflow:hidden;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    body {
+      margin: 0;
+      padding: 0;
+      background: #111;
+      color: #fff;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding-bottom: 50px;
     }
-    .input-label:active { background:#008c9e; transform: translateY(1px); }
-    .input-label input[type="file"] { position: absolute; left:0; top:0; width:100%; height:100%; opacity: 0; cursor: pointer; }
-    
-    .status-line { display: flex; flex-direction: column; align-items: center; width: 100%; gap: 2px; margin-top: 4px; }
-    .filename { color:#00e5ff; font-size:0.9em; word-break:break-all; text-align: center; }
-    .status { font-size:0.85em; color:#bbb; text-align:center; }
+
+    h2 {
+      margin: 1em 0 0.5em 0;
+      font-size: 1.5rem;
+      text-align: center;
+    }
+
+    .howto {
+      background: #222;
+      color: #ccc;
+      padding: 1em;
+      border-radius: 8px;
+      margin: 0 0 16px 0;
+      font-size: 0.9rem;
+      width: 90%;
+      max-width: 800px;
+      line-height: 1.4;
+    }
+
+    .howto ol {
+      padding-left: 1.2em;
+      margin: 0.5em 0 0 0;
+    }
+
+    .howto li {
+      margin-bottom: 0.3em;
+    }
+
+    .input-area {
+      width: 95%;
+      max-width: 800px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.8em;
+      margin-bottom: 1em;
+    }
+
+    /* File input styling */
+    .file-input-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      margin-bottom: 0.5em;
+    }
+
+    .input-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      max-width: 400px;
+      height: 3em;
+      background: #00bcd4;
+      color: #fff;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: bold;
+      transition: background 0.2s;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .input-label:active {
+      background: #008c9e;
+      transform: translateY(1px);
+    }
+
+    .input-label input[type="file"] {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .status-line {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      gap: 2px;
+      margin-top: 4px;
+    }
+
+    .filename {
+      color: #00e5ff;
+      font-size: 0.9em;
+      word-break: break-all;
+      text-align: center;
+    }
+
+    .status {
+      font-size: 0.85em;
+      color: #bbb;
+      text-align: center;
+    }
 
     /* Compare button */
-    button#compareBtn { 
-      margin-top:0.5em; width: 100%; max-width: 400px; height: 3.5em;
-      background:#2196f3; color:#fff; border:none; border-radius:8px; 
-      cursor:pointer; font-size:1.1rem; font-weight: bold;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    button#compareBtn {
+      margin-top: 0.5em;
+      width: 100%;
+      max-width: 400px;
+      height: 3.5em;
+      background: #2196f3;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1.1rem;
+      font-weight: bold;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
       transition: background 0.2s;
     }
-    button#compareBtn:active { background:#1976d2; transform: translateY(2px); }
+
+    button#compareBtn:active {
+      background: #1976d2;
+      transform: translateY(2px);
+    }
 
     /* Video Layout */
-    .video-wrapper { 
-      width:100%; display:flex; flex-direction:column; align-items:center; gap:1.5em; margin-bottom:1em; 
-    }
-    /* Larger screens: side by side */
-    @media (min-width: 768px) {
-      .video-wrapper { flex-direction: row; justify-content: center; align-items: flex-start; gap: 20px; }
-      .video-block { width: 45%; max-width: 480px; }
+    .video-wrapper {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5em;
+      margin-bottom: 1em;
     }
 
-    .video-block { 
-      position:relative; width:95%; max-width:100%; 
-      background: #000; border-radius: 8px; overflow: hidden;
-      aspect-ratio: 16/9; /* enforce aspect ratio to prevent layout jumps */
-      display: flex; justify-content: center; align-items: center;
+    /* Larger screens: side by side */
+    @media (min-width: 768px) {
+      .video-wrapper {
+        flex-direction: row;
+        justify-content: center;
+        align-items: flex-start;
+        gap: 20px;
+      }
+
+      .video-block {
+        width: 45%;
+        max-width: 480px;
+      }
+    }
+
+    .video-block {
+      position: relative;
+      width: 95%;
+      max-width: 100%;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      aspect-ratio: 16/9;
+      /* enforce aspect ratio to prevent layout jumps */
+      display: flex;
+      justify-content: center;
+      align-items: center;
       border: 1px solid #333;
+      max-height: 80vh;
+      /* Prevent too tall on mobile */
     }
-    
-    video { 
-      width:100%; height:100%; 
-      object-fit: contain; /* ensure video fits within 16:9 box */
-      display:block; /* initially hidden by JS until loaded, but CSS can default to block if desired or handled by JS for 'none' */
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      /* ensure video fits within 16:9 box */
+      display: block;
+      max-height: 80vh;
     }
-    
-    canvas { 
-      position:absolute; top:0; left:0; 
-      width:100%; height:100%;
-      pointer-events:none; 
-      z-index:10; 
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
       /* visualization debug: border: 1px solid red; */
     }
 
     /* Info Areas */
-    #adviceArea { 
-      margin-top:10px; width:95%; max-width:800px; 
-      background:#263238; color:#fff; border-radius:8px; 
-      padding:1em; font-size:1rem; line-height: 1.5;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    #adviceArea {
+      margin-top: 10px;
+      width: 95%;
+      max-width: 800px;
+      background: #263238;
+      color: #fff;
+      border-radius: 8px;
+      padding: 1em;
+      font-size: 1rem;
+      line-height: 1.5;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     }
-    
-    #diagnostics { 
-      margin-top:20px; width:95%; max-width:800px; 
-      background:#0e0e0e; border:1px solid #333; 
-      padding:0.75em; border-radius:8px; color:#aaa; 
-      font-size:0.8em; font-family: monospace;
-      max-height:150px; overflow-y:auto; white-space:pre-wrap; 
+
+    #diagnostics {
+      margin-top: 20px;
+      width: 95%;
+      max-width: 800px;
+      background: #0e0e0e;
+      border: 1px solid #333;
+      padding: 0.75em;
+      border-radius: 8px;
+      color: #aaa;
+      font-size: 0.8em;
+      font-family: monospace;
+      max-height: 150px;
+      overflow-y: auto;
+      white-space: pre-wrap;
     }
   </style>
 </head>
+
 <body>
   <h2>動作比較モード</h2>
 
@@ -144,4 +291,5 @@
   <!-- compare.js はモジュールで読み込む -->
   <script type="module" src="./compare.js"></script>
 </body>
+
 </html>
