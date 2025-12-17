@@ -19,6 +19,8 @@ const compareBtn = document.getElementById('compareBtn');
 
 let referencePoseFrames = [];
 let targetPoseFrames = [];
+let latestResults1 = null;
+let latestResults2 = null;
 
 // objectURL 管理
 let currentObjectURL1 = null, currentObjectURL2 = null;
@@ -53,7 +55,8 @@ const ctx1 = canvas1.getContext('2d');
 const ctx2 = canvas2.getContext('2d');
 
 // Canvasリサイズ同期用ループ (描画はしない、サイズだけ合わせる)
-function startCanvasSyncLoop(video, canvas, ctxRef, label) {
+// 同期描画ループ (Video -> Skeleton)
+function startDrawLoop(video, canvas, ctxRef, label, getLatestResults) {
   if (!video || !canvas) return () => { };
   if (!ctxRef.ctx) ctxRef.ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
@@ -61,26 +64,31 @@ function startCanvasSyncLoop(video, canvas, ctxRef, label) {
 
   function loop() {
     try {
-      if (video.readyState >= 1) {
-        // ビデオ表示サイズに合わせる
-        const vw = video.videoWidth;
-        const vh = video.videoHeight;
+      if (!video.paused && !video.ended && video.readyState >= 2) {
+        const vw = video.videoWidth || Math.max(1, Math.round(video.clientWidth));
+        const vh = video.videoHeight || Math.max(1, Math.round(video.clientHeight));
 
-        // Canvasの内部解像度をビデオ解像度に合わせる
-        if (canvas.width !== vw || canvas.height !== vh) {
-          canvas.width = vw;
-          canvas.height = vh;
-          // CSSで見た目のサイズを合わせる必要はない（aspect-ratioで制御され、absoluteで重なるため）
-          // ただし、もしずれるようならここも調整
+        // Canvasサイズ調整
+        if (canvas.width !== Math.round(vw * dpr) || canvas.height !== Math.round(vh * dpr)) {
+          canvas.width = Math.round(vw * dpr);
+          canvas.height = Math.round(vh * dpr);
+          canvas.style.width = `${vw}px`;
+          canvas.style.height = `${vh}px`;
+          ctxRef.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         }
 
-        // ここでの drawImage は行わない！ MediaPipeの描画と競合するため。
-        // 代わりに透明にする（必要なら clearRect）
-        // MediaPipeの描画は onResults で行われるので、ここでは何もしなくてよい
-        // ctxRef.ctx.clearRect(0, 0, canvas.width, canvas.height); // onResults側でクリアされるまで残すのでここでもクリアしない方がチラつかないかも？
+        // 1. ビデオを描画
+        ctxRef.ctx.clearRect(0, 0, vw, vh);
+        ctxRef.ctx.drawImage(video, 0, 0, vw, vh);
+
+        // 2. 骨格を描画 (あれば)
+        const results = getLatestResults();
+        if (results && results.poseLandmarks) {
+          drawPoseOverlay(results, ctxRef.ctx);
+        }
       }
     } catch (e) {
-      addLog(`${label}: sync loop 例外: ${e.message || e}`, 'error');
+      addLog(`${label}: draw loop 例外: ${e.message || e}`, 'error');
     }
     rafId = requestAnimationFrame(loop);
   }
@@ -90,46 +98,41 @@ function startCanvasSyncLoop(video, canvas, ctxRef, label) {
 
 function stopLoop(rafRef) { if (rafRef && typeof rafRef === 'function') rafRef(); }
 
-// overlay drawing using MediaPipe drawing_utils
-function drawPoseOverlay(results, ctx, canvas, video, label) {
-  // 毎回クリアして描画する
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+function drawPoseOverlay(results, ctx) {
   if (!results.poseLandmarks) return;
   try {
-    // MediaPipeの描画ユーティリティを使用
-    // ビデオを描画せず、スケルトンだけ描く
     window.drawConnectors(ctx, results.poseLandmarks, window.POSE_CONNECTIONS, { color: '#00FF00', lineWidth: 4 });
     window.drawLandmarks(ctx, results.poseLandmarks, { color: '#FF0000', lineWidth: 4, radius: 2 });
   } catch (e) {
-    addLog(`${label}: drawConnectors/drawLandmarks 例外: ${e.message || e}`, 'error');
+    // 描画エラーはログ抑制(頻出するため)
   }
 }
 
 function recordLandmarks(results, frameArray, video) {
   if (!results.poseLandmarks) return;
   const now = video.currentTime || 0;
+  // 記録頻度制御なしで全フレーム記録推奨だが、データ量削減のため間引く
   const last = frameArray.length ? frameArray[frameArray.length - 1].time : -999;
-  if (frameArray.length === 0 || Math.abs(now - last) > 0.1) { // 頻度を少し調整
+  if (frameArray.length === 0 || Math.abs(now - last) > 0.05) {
     frameArray.push({ landmarks: JSON.parse(JSON.stringify(results.poseLandmarks)), time: now });
   }
 }
 
-// MediaPipe onResults
+// MediaPipe results handler
 if (pose1) {
   pose1.onResults(results => {
     try {
-      drawPoseOverlay(results, ctx1, canvas1, video1, '左');
+      latestResults1 = results;
       recordLandmarks(results, referencePoseFrames, video1);
-    } catch (e) { addLog('pose1.onResults 例外: ' + (e.message || e), 'error'); }
+    } catch (e) { console.error(e); }
   });
 }
 if (pose2) {
   pose2.onResults(results => {
     try {
-      drawPoseOverlay(results, ctx2, canvas2, video2, '右');
+      latestResults2 = results;
       recordLandmarks(results, targetPoseFrames, video2);
-    } catch (e) { addLog('pose2.onResults 例外: ' + (e.message || e), 'error'); }
+    } catch (e) { console.error(e); }
   });
 }
 
@@ -178,7 +181,7 @@ function handleFileSelect(event, videoEl, canvasEl, videoNameEl, videoStatusEl, 
     videoEl.play().catch(e => addLog(`自動再生保留: ${e.message}`, 'info'));
 
     // ループ開始
-    const stopSync = startCanvasSyncLoop(videoEl, canvasEl, { ctx: ctx }, label);
+    const stopSync = startDrawLoop(videoEl, canvasEl, { ctx: ctx }, label, () => (label === 'Left' ? latestResults1 : latestResults2));
     const stopPose = startPoseLoop(videoEl, pose);
 
     if (setStopLoop) {
@@ -243,8 +246,8 @@ compareBtn.addEventListener('click', async (e) => {
   }
 
   // ループ再開
-  const s1 = startCanvasSyncLoop(video1, canvas1, { ctx: ctx1 }, 'Left');
-  const s2 = startCanvasSyncLoop(video2, canvas2, { ctx: ctx2 }, 'Right');
+  const s1 = startDrawLoop(video1, canvas1, { ctx: ctx1 }, 'Left', () => latestResults1);
+  const s2 = startDrawLoop(video2, canvas2, { ctx: ctx2 }, 'Right', () => latestResults2);
   const p1 = startPoseLoop(video1, pose1);
   const p2 = startPoseLoop(video2, pose2);
 
@@ -254,7 +257,10 @@ compareBtn.addEventListener('click', async (e) => {
 
 // 再生終了監視
 let endedCount = 0;
+let isProcessingAdvice = false;
+
 function onVideoEnded() {
+  if (isProcessingAdvice) return;
   endedCount++;
   if (endedCount >= 2) { // 簡易判定: 両方終わったら
     addLog('両動画再生終了。解析開始...');
@@ -264,6 +270,8 @@ function onVideoEnded() {
     if (loopManager2.val) loopManager2.val();
 
     endedCount = 0;
+
+    isProcessingAdvice = true;
 
     // AIアドバイス
     adviceArea.textContent = 'Gemini AIが骨格を分析中...';
@@ -282,6 +290,7 @@ function onVideoEnded() {
       } finally {
         compareBtn.disabled = false;
         compareBtn.textContent = '動画比較してAIアドバイス表示';
+        isProcessingAdvice = false;
       }
     }, 500);
   }
