@@ -65,16 +65,22 @@ function startDrawLoop(video, canvas, ctxRef, label, getLatestResults) {
   function loop() {
     try {
       if (!video.paused && !video.ended && video.readyState >= 2) {
-        const vw = video.videoWidth || Math.max(1, Math.round(video.clientWidth));
-        const vh = video.videoHeight || Math.max(1, Math.round(video.clientHeight));
+        // Intrinsic resolution (実際の解像度)
+        const vw = video.videoWidth;
+        const vh = video.videoHeight;
 
-        // Canvasサイズ調整
-        if (canvas.width !== Math.round(vw * dpr) || canvas.height !== Math.round(vh * dpr)) {
-          canvas.width = Math.round(vw * dpr);
-          canvas.height = Math.round(vh * dpr);
-          canvas.style.width = `${vw}px`;
-          canvas.style.height = `${vh}px`;
+        // Canvasの解像度（バッファサイズ）を動画の解像度に合わせる
+        // これによりMediaPipeの座標と1:1になる
+        if (canvas.width !== vw || canvas.height !== vh) {
+          canvas.width = vw;
+          canvas.height = vh;
+          // style.width/height は設定しない（CSSの width:100%; height:100% に任せる）
+          // これにより、動画がCSSで縮小されてもCanvasだけ巨大化するのを防ぐ
+          canvas.style.width = '100%';
+          canvas.style.height = '100%';
+
           ctxRef.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          ctxRef.ctx.resetTransform();
         }
 
         // 1. ビデオを描画
