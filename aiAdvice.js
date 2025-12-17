@@ -44,21 +44,49 @@ export async function getAdviceFromGemini(referencePose, targetPose) {
   };
 
   try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    const maxRetries = 3;
+    let attempt = 0;
+    while (attempt <= maxRetries) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new Error(`Gemini API エラー: ${res.status} ${res.statusText} ${text}`);
+        if (res.status === 429) {
+          throw new Error('Too Many Requests');
+        }
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => '');
+          throw new Error(`Gemini API エラー: ${res.status} ${res.statusText} ${text}`);
+        }
+
+        const data = await res.json();
+        // APIレスポンスの形によってはここを調整
+        const advice = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        return advice || 'アドバイスが取得できませんでした。';
+
+      } catch (err) {
+        attempt++;
+        const isRetryable = err.message.includes('Too Many Requests') || err.message.includes('503');
+
+        if (attempt <= maxRetries && isRetryable) {
+          const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s...
+          console.warn(`Gemini API リトライ待機中 (${attempt}/${maxRetries}): ${delay}ms...`);
+          // 呼び出し元に進捗を通知できないため、ここでは待機のみ
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+
+        // リトライ上限またはリトライ不可エラー
+        if (err.message.includes('Too Many Requests')) {
+          throw new Error('現在アクセスが集中しておりアドバイスを生成できませんでした。しばらく時間を置いてから再度お試しください。');
+        }
+        throw err;
+      }
     }
-
-    const data = await res.json();
-    // APIレスポンスの形によってはここを調整
-    const advice = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    return advice || 'アドバイスが取得できませんでした。';
   } catch (err) {
     throw new Error(`AIアドバイス生成中にエラーが発生しました: ${err.message}`);
   }
