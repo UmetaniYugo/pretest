@@ -25,6 +25,12 @@ const replayBtn = document.getElementById('replayBtn');
 
 // 下段のビデオのみ制御（上段は独立）
 replayBtn.addEventListener('click', () => {
+  // Clear trajectories
+  const w1 = canvasTrajectory1.width, h1 = canvasTrajectory1.height;
+  const w2 = canvasTrajectory2.width, h2 = canvasTrajectory2.height;
+  canvasTrajectory1.getContext('2d').clearRect(0, 0, w1, h1);
+  canvasTrajectory2.getContext('2d').clearRect(0, 0, w2, h2);
+
   video1.currentTime = 0;
   video2.currentTime = 0;
   video1.play();
@@ -299,7 +305,18 @@ function handleFileSelect(event, videoEl, videoRawEl, videoNameEl, videoStatusEl
       }
     }
     videoEl.onplay = () => {
+      // 再生開始時に先頭付近なら軌道をクリア（再試行の利便性のため）
+      if (videoEl.currentTime < 0.1) {
+        const tCanvas = (videoEl.id === 'video1') ? canvasTrajectory1 : canvasTrajectory2;
+        if (tCanvas) {
+          tCanvas.getContext('2d').clearRect(0, 0, tCanvas.width, tCanvas.height);
+        }
+      }
       videoEl.requestVideoFrameCallback ? videoEl.requestVideoFrameCallback(processFrame) : requestAnimationFrame(processFrame);
+    };
+    // シーク時も更新（常時表示のため）
+    videoEl.onseeked = () => {
+      requestAnimationFrame(processFrame);
     };
     // 初回キック
     requestAnimationFrame(processFrame);
