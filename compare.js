@@ -22,6 +22,11 @@ let targetPoseFrames = [];
 let latestResults1 = null;
 let latestResults2 = null;
 let isComparisonActive = false; // Flag to control advice generation
+let recorder1 = null;
+let recorder2 = null;
+let chunks1 = [];
+let chunks2 = [];
+const downloadArea = document.getElementById('downloadArea');
 
 // objectURL 管理
 let currentObjectURL1 = null, currentObjectURL2 = null;
@@ -249,8 +254,31 @@ compareBtn.addEventListener('click', async (e) => {
   video2.currentTime = 0;
 
   isComparisonActive = true;
+  downloadArea.innerHTML = ''; // Reset download buttons
+  chunks1 = [];
+  chunks2 = [];
 
   try {
+    // 録画のセットアップ (Canvasからストリームを取得)
+    const stream1 = canvas1.captureStream(30); // 30fps
+    const stream2 = canvas2.captureStream(30);
+
+    // MediaRecorderのサポート確認と生成
+    // mimeTypeはブラウザのサポート状況による (通常 webm)
+    let mimeType = 'video/webm;codecs=vp9';
+    if (!MediaRecorder.isTypeSupported(mimeType)) {
+      mimeType = 'video/webm'; // fallback
+    }
+
+    recorder1 = new MediaRecorder(stream1, { mimeType });
+    recorder2 = new MediaRecorder(stream2, { mimeType });
+
+    recorder1.ondataavailable = e => { if (e.data.size > 0) chunks1.push(e.data); };
+    recorder2.ondataavailable = e => { if (e.data.size > 0) chunks2.push(e.data); };
+
+    recorder1.start();
+    recorder2.start();
+
     await Promise.all([video1.play(), video2.play()]);
   } catch (e) {
     addLog('再生開始エラー: ' + e.message, 'error');
@@ -371,8 +399,16 @@ function onVideoEnded() {
     // アドバイス生成
     adviceArea.textContent = '解析中...';
 
+    // アドバイス生成 & ダウンロードボタン作成
+    adviceArea.textContent = '解析中...';
+
     setTimeout(() => {
       try {
+        // 録画停止
+        if (recorder1 && recorder1.state !== 'inactive') recorder1.stop();
+        if (recorder2 && recorder2.state !== 'inactive') recorder2.stop();
+
+        // 分析実行
         const jointIndex = parseInt(jointSelect.value, 10);
         const advice = analyzeMotion(
           referencePoseFrames,
@@ -382,7 +418,12 @@ function onVideoEnded() {
 
         adviceArea.textContent = advice;
         adviceArea.style.background = '#00695c';
-        addLog('解析成功');
+
+        // ダウンロードボタン生成
+        createDownloadButton(chunks1, 'otehon_skeleton.webm', 'お手本動画を保存');
+        createDownloadButton(chunks2, 'hikaku_skeleton.webm', '比較動画を保存');
+
+        addLog('解析・動画生成成功');
       } catch (e) {
         adviceArea.textContent = '解析失敗: ' + e.message;
         adviceArea.style.background = '#b71c1c';
@@ -395,6 +436,30 @@ function onVideoEnded() {
       }
     }, 500);
   }
+}
+
+function createDownloadButton(chunks, filename, label) {
+  if (!chunks || chunks.length === 0) return;
+  const blob = new Blob(chunks, { type: 'video/webm' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+
+  const btn = document.createElement('button');
+  btn.textContent = label;
+  btn.style.padding = '10px';
+  btn.style.background = '#e65100';
+  btn.style.color = 'white';
+  btn.style.border = 'none';
+  btn.style.borderRadius = '5px';
+  btn.style.cursor = 'pointer';
+  btn.onclick = () => a.click();
+
+  downloadArea.appendChild(btn);
 }
 
 video1.addEventListener('ended', onVideoEnded);
