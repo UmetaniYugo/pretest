@@ -14,6 +14,8 @@ const video1 = document.getElementById('video1');
 const video2 = document.getElementById('video2');
 const canvas1 = document.getElementById('canvas1');
 const canvas2 = document.getElementById('canvas2');
+const canvasTrajectory1 = document.getElementById('canvasTrajectory1');
+const canvasTrajectory2 = document.getElementById('canvasTrajectory2');
 const adviceArea = document.getElementById('adviceArea');
 const compareBtn = document.getElementById('compareBtn');
 
@@ -62,54 +64,66 @@ const ctx2 = canvas2.getContext('2d');
 
 // Canvasリサイズ同期用ループ (描画はしない、サイズだけ合わせる)
 // 同期描画ループ (Video -> Skeleton)
-function startDrawLoop(video, canvas, ctxRef, label, getLatestResults) {
+function startDrawLoop(video, canvas, ctxRef, label, getLatestResults, trajectoryCanvas) {
   if (!video || !canvas) return () => { };
   if (!ctxRef.ctx) ctxRef.ctx = canvas.getContext('2d');
+
+  // 軌跡用キャンバス
+  let ctxTraj = null;
+  if (trajectoryCanvas) {
+    ctxTraj = trajectoryCanvas.getContext('2d');
+  }
+
   const dpr = window.devicePixelRatio || 1;
   let rafId = null;
+  let lastLandmarks = null; // 前フレームの座標（軌跡描画用）
 
   function loop() {
     try {
       if (!video.paused && !video.ended && video.readyState >= 2) {
-        // Intrinsic resolution (実際の解像度)
         const vw = video.videoWidth;
         const vh = video.videoHeight;
 
-        // Canvasの解像度（バッファサイズ）を動画の解像度に合わせる
-        // これによりMediaPipeの座標と1:1になる
+        // 1. メインCanvas (Skeleton) - 毎回リサイズ＆クリア
         if (canvas.width !== vw || canvas.height !== vh) {
           canvas.width = vw;
           canvas.height = vh;
-          // style.width/height は設定しない（CSSの width:100%; height:100% に任せる）
-          // これにより、動画がCSSで縮小されてもCanvasだけ巨大化するのを防ぐ
           canvas.style.width = '100%';
           canvas.style.height = '100%';
-
           ctxRef.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
           ctxRef.ctx.resetTransform();
         }
 
-        // 1. ビデオを描画
+        // 2. 軌跡Canvas - リサイズ時はクリアされるが、それは許容（アスペクト比変更時など）
+        // 通常はリサイズされないので軌跡が残る
+        if (trajectoryCanvas && (trajectoryCanvas.width !== vw || trajectoryCanvas.height !== vh)) {
+          trajectoryCanvas.width = vw;
+          trajectoryCanvas.height = vh;
+          trajectoryCanvas.style.width = '100%';
+          trajectoryCanvas.style.height = '100%';
+          ctxTraj.setTransform(dpr, 0, 0, dpr, 0, 0);
+          ctxTraj.resetTransform();
+          lastLandmarks = null; // リセット
+        }
+
+        // ビデオ描画
         ctxRef.ctx.clearRect(0, 0, vw, vh);
         ctxRef.ctx.drawImage(video, 0, 0, vw, vh);
 
-        // 2. 骨格を描画 (あれば)
+        // 骨格描画
         const results = getLatestResults();
         if (results && results.poseLandmarks) {
           drawPoseOverlay(results, ctxRef.ctx);
-        }
 
-        // 3. 軌跡を描画 (再生中に蓄積されたフレームまたは解析完了後の全フレーム)
-        // ここではリアルタイム蓄積フレームを使用
-        // 左(Reference)の場合
-        if (label === 'Left') {
-          drawTrajectory(referencePoseFrames, ctxRef.ctx, '#00FFFF'); // Cyan for Ref
-        } else {
-          drawTrajectory(targetPoseFrames, ctxRef.ctx, '#FF00FF'); // Magenta for Target
+          // 3. 軌跡描画 (Incremental)
+          if (ctxTraj) {
+            drawTrajectoryIncremental(lastLandmarks, results.poseLandmarks, ctxTraj, label === 'Left' ? '#00FFFF' : '#FF00FF');
+            lastLandmarks = results.poseLandmarks;
+          }
         }
       }
     } catch (e) {
-      addLog(`${label}: draw loop 例外: ${e.message || e}`, 'error');
+      if (Math.random() < 0.01) addLog(`${label}: draw loop 例外: ${e.message || e}`, 'error'); // ログ抑制
     }
     rafId = requestAnimationFrame(loop);
   }
@@ -129,38 +143,33 @@ function drawPoseOverlay(results, ctx) {
   }
 }
 
-function drawTrajectory(poseFrames, ctx, color) {
+function drawTrajectoryIncremental(prevLandmarks, currLandmarks, ctx, color) {
+  if (!prevLandmarks || !currLandmarks) return;
   const joints = getSelectedJoints();
-  if (joints.length === 0 || poseFrames.length < 2) return;
+  if (joints.length === 0) return;
 
   ctx.save();
   ctx.lineWidth = 2;
   ctx.strokeStyle = color;
+  ctx.beginPath();
 
   joints.forEach(jointIndex => {
-    ctx.beginPath();
-    let started = false;
-    // 間引きつつ描画 (全フレームだと重い場合がある)
-    for (let i = 0; i < poseFrames.length; i += 2) {
-      const lm = poseFrames[i].landmarks;
-      if (!lm || !lm[jointIndex]) continue;
-      const pt = lm[jointIndex];
-      // ビデオ座標系への変換は drawDrawLoop 内の setTransform で行われている前提
-      // しかし MediaPipe raw coordinates (0.0-1.0) need scaling
-      // ここでは drawPoseOverlay が MediaPipe utilities を使っているのに対し、
-      // 手動描画なので canvas width/height を掛ける必要がある
-      const x = pt.x * ctx.canvas.width;
-      const y = pt.y * ctx.canvas.height;
+    const prev = prevLandmarks[jointIndex];
+    const curr = currLandmarks[jointIndex];
+    if (prev && curr && prev.visibility > 0.5 && curr.visibility > 0.5) {
+      const x1 = prev.x * ctx.canvas.width;
+      const y1 = prev.y * ctx.canvas.height;
+      const x2 = curr.x * ctx.canvas.width;
+      const y2 = curr.y * ctx.canvas.height;
 
-      if (!started) {
-        ctx.moveTo(x, y);
-        started = true;
-      } else {
-        ctx.lineTo(x, y);
+      // 異常な飛び値（誤検出）を除外
+      if (Math.abs(x1 - x2) < 100 && Math.abs(y1 - y2) < 100) {
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
       }
     }
-    ctx.stroke();
   });
+  ctx.stroke();
   ctx.restore();
 }
 
@@ -242,7 +251,7 @@ function handleFileSelect(event, videoEl, canvasEl, videoNameEl, videoStatusEl, 
     // videoEl.play().catch(e => addLog(`自動再生保留: ${e.message}`, 'info'));
 
     // ループ開始
-    const stopSync = startDrawLoop(videoEl, canvasEl, { ctx: ctx }, label, () => (label === 'Left' ? latestResults1 : latestResults2));
+    const stopSync = startDrawLoop(videoEl, canvasEl, { ctx: ctx }, label, () => (label === 'Left' ? latestResults1 : latestResults2), label === 'Left' ? canvasTrajectory1 : canvasTrajectory2);
     const stopPose = startPoseLoop(videoEl, pose);
 
     if (setStopLoop) {
@@ -314,14 +323,17 @@ compareBtn.addEventListener('click', async (e) => {
       mimeType = 'video/webm'; // fallback
     }
 
-    recorder1 = new MediaRecorder(stream1, { mimeType });
-    recorder2 = new MediaRecorder(stream2, { mimeType });
+    try {
+      recorder1 = new MediaRecorder(stream1, { mimeType });
+      recorder1.ondataavailable = e => { if (e.data.size > 0) chunks1.push(e.data); };
+      recorder1.start();
+    } catch (e) { console.warn('Recorder1 init fail', e); recorder1 = null; }
 
-    recorder1.ondataavailable = e => { if (e.data.size > 0) chunks1.push(e.data); };
-    recorder2.ondataavailable = e => { if (e.data.size > 0) chunks2.push(e.data); };
-
-    recorder1.start();
-    recorder2.start();
+    try {
+      recorder2 = new MediaRecorder(stream2, { mimeType });
+      recorder2.ondataavailable = e => { if (e.data.size > 0) chunks2.push(e.data); };
+      recorder2.start();
+    } catch (e) { console.warn('Recorder2 init fail', e); recorder2 = null; }
 
     await Promise.all([video1.play(), video2.play()]);
   } catch (e) {
@@ -332,8 +344,8 @@ compareBtn.addEventListener('click', async (e) => {
   }
 
   // ループ再開
-  const s1 = startDrawLoop(video1, canvas1, { ctx: ctx1 }, 'Left', () => latestResults1);
-  const s2 = startDrawLoop(video2, canvas2, { ctx: ctx2 }, 'Right', () => latestResults2);
+  const s1 = startDrawLoop(video1, canvas1, { ctx: ctx1 }, 'Left', () => latestResults1, canvasTrajectory1);
+  const s2 = startDrawLoop(video2, canvas2, { ctx: ctx2 }, 'Right', () => latestResults2, canvasTrajectory2);
   const p1 = startPoseLoop(video1, pose1);
   const p2 = startPoseLoop(video2, pose2);
 
