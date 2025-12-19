@@ -98,6 +98,15 @@ function startDrawLoop(video, canvas, ctxRef, label, getLatestResults) {
         if (results && results.poseLandmarks) {
           drawPoseOverlay(results, ctxRef.ctx);
         }
+
+        // 3. 軌跡を描画 (再生中に蓄積されたフレームまたは解析完了後の全フレーム)
+        // ここではリアルタイム蓄積フレームを使用
+        // 左(Reference)の場合
+        if (label === 'Left') {
+          drawTrajectory(referencePoseFrames, ctxRef.ctx, '#00FFFF'); // Cyan for Ref
+        } else {
+          drawTrajectory(targetPoseFrames, ctxRef.ctx, '#FF00FF'); // Magenta for Target
+        }
       }
     } catch (e) {
       addLog(`${label}: draw loop 例外: ${e.message || e}`, 'error');
@@ -118,6 +127,41 @@ function drawPoseOverlay(results, ctx) {
   } catch (e) {
     // 描画エラーはログ抑制(頻出するため)
   }
+}
+
+function drawTrajectory(poseFrames, ctx, color) {
+  const joints = getSelectedJoints();
+  if (joints.length === 0 || poseFrames.length < 2) return;
+
+  ctx.save();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = color;
+
+  joints.forEach(jointIndex => {
+    ctx.beginPath();
+    let started = false;
+    // 間引きつつ描画 (全フレームだと重い場合がある)
+    for (let i = 0; i < poseFrames.length; i += 2) {
+      const lm = poseFrames[i].landmarks;
+      if (!lm || !lm[jointIndex]) continue;
+      const pt = lm[jointIndex];
+      // ビデオ座標系への変換は drawDrawLoop 内の setTransform で行われている前提
+      // しかし MediaPipe raw coordinates (0.0-1.0) need scaling
+      // ここでは drawPoseOverlay が MediaPipe utilities を使っているのに対し、
+      // 手動描画なので canvas width/height を掛ける必要がある
+      const x = pt.x * ctx.canvas.width;
+      const y = pt.y * ctx.canvas.height;
+
+      if (!started) {
+        ctx.moveTo(x, y);
+        started = true;
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.stroke();
+  });
+  ctx.restore();
 }
 
 function recordLandmarks(results, frameArray, video) {
@@ -301,13 +345,23 @@ compareBtn.addEventListener('click', async (e) => {
 let endedCount = 0;
 let isProcessingAdvice = false;
 
-const jointSelect = document.getElementById('jointSelect');
+const jointSelectionArea = document.getElementById('jointSelectionArea');
 
-function analyzeMotion(referenceFrames, targetFrames, jointIndex) {
+const JOINT_LABELS = {
+  16: '右手首', 15: '左手首', 14: '右ひじ', 13: '左ひじ',
+  12: '右肩', 11: '左肩', 24: '右腰', 23: '左腰',
+  26: '右ひざ', 25: '左ひざ', 28: '右足首', 27: '左足首', 0: '鼻'
+};
+
+function getSelectedJoints() {
+  const checkboxes = jointSelectionArea.querySelectorAll('input[type="checkbox"]:checked');
+  return Array.from(checkboxes).map(cb => parseInt(cb.value, 10));
+}
+
+function analyzeMotion(referenceFrames, targetFrames, selectedJoints) {
   if (!referenceFrames.length || !targetFrames.length) return 'データが不足しています。';
 
   // 簡易的な肩幅による正規化
-  // index 11: left_shoulder, 12: right_shoulder
   function getScale(landmarks) {
     if (!landmarks) return 1;
     const ls = landmarks[11];
@@ -318,67 +372,68 @@ function analyzeMotion(referenceFrames, targetFrames, jointIndex) {
     return 1;
   }
 
-  // フレーム数の一致（簡易的に短い方に合わせるか、サンプリングする）
-  // ここでは単純に先頭から比較し、フレーム平均をとる
   const len = Math.min(referenceFrames.length, targetFrames.length);
-  let diffSum = 0;
-  let validCount = 0;
+  let adviceList = [];
 
-  // Y座標の推移（高さ）の平均
-  let refYSum = 0;
-  let tarYSum = 0;
+  selectedJoints.forEach(jointIndex => {
+    let diffSum = 0;
+    let validCount = 0;
+    let yDiffSum = 0; // + means target is lower (larger Y)
 
-  for (let i = 0; i < len; i++) {
-    if (!referenceFrames[i] || !targetFrames[i]) continue;
+    for (let i = 0; i < len; i++) {
+      if (!referenceFrames[i] || !targetFrames[i]) continue;
+      const refL = referenceFrames[i].landmarks;
+      const tarL = targetFrames[i].landmarks;
+      if (!refL || !tarL) continue;
 
-    const refL = referenceFrames[i].landmarks;
-    const tarL = targetFrames[i].landmarks;
+      const rScale = getScale(refL);
+      const tScale = getScale(tarL);
 
-    if (!refL || !tarL) continue;
+      const refJoint = refL[jointIndex];
+      const tarJoint = tarL[jointIndex];
 
-    const rScale = getScale(refL);
-    const tScale = getScale(tarL);
+      if (refJoint && tarJoint && refJoint.visibility > 0.5 && tarJoint.visibility > 0.5) {
+        // Normalize
+        const rX = refJoint.x / rScale;
+        const rY = refJoint.y / rScale;
+        const tX = tarJoint.x / tScale;
+        const tY = tarJoint.y / tScale;
 
-    const refJoint = refL[jointIndex];
-    const tarJoint = tarL[jointIndex];
+        // Distance
+        const diff = Math.sqrt(Math.pow(rX - tX, 2) + Math.pow(rY - tY, 2));
+        diffSum += diff;
 
-    if (refJoint && tarJoint && refJoint.visibility > 0.5 && tarJoint.visibility > 0.5) {
-      // 正規化座標比較
-      // (単純化のため、画像の中心などを原点とした相対座標にするのが理想だが、ここでは高さの違いを見るためにYを比較)
-      const rY = refJoint.y / rScale;
-      const tY = tarJoint.y / tScale;
-
-      const diff = Math.abs(rY - tY);
-      diffSum += diff;
-      refYSum += rY;
-      tarYSum += tY;
-      validCount++;
+        yDiffSum += (tY - rY);
+        validCount++;
+      }
     }
-  }
 
-  if (validCount === 0) return '指定された関節が検出されませんでした。';
+    const label = JOINT_LABELS[jointIndex] || `関節(${jointIndex})`;
 
-  const avgDiff = diffSum / validCount;
-  const avgRefY = refYSum / validCount;
-  const avgTarY = tarYSum / validCount;
+    if (validCount === 0) {
+      adviceList.push(`[${label}] 検出できませんでした。`);
+      return;
+    }
 
-  // アドバイス文章作成
-  let advice = `平均ズレ（正規化後）: ${avgDiff.toFixed(3)}\n`;
+    const avgDiff = diffSum / validCount;
+    const avgYDiff = yDiffSum / validCount;
 
-  if (avgDiff < 0.1) {
-    advice += '判定: お手本と非常によく似た動きです！素晴らしいです。';
-  } else {
-    advice += '判定: お手本との違いが見られます。\n';
-    if (avgTarY > avgRefY + 0.05) { // Y座標が大きい = 画面下 = 位置が低い
-      advice += '・全体的に位置が低くなっています。もう少し高く意識してみましょう。';
-    } else if (avgTarY < avgRefY - 0.05) {
-      advice += '・全体的に位置が高くなっています。重心を落とすか、位置を調整しましょう。';
+    if (avgDiff < 0.1) {
+      adviceList.push(`[${label}] 素晴らしい！お手本とほぼ同じ動きです。`);
     } else {
-      advice += '・軌道がずれています。フォームを確認してください。';
+      let msg = `[${label}] ズレがあります。`;
+      if (avgYDiff > 0.05) {
+        msg += '位置が【低い】です。もっと高く保ちましょう。';
+      } else if (avgYDiff < -0.05) {
+        msg += '位置が【高い】です。重心を落とすかリラックスしてください。';
+      } else {
+        msg += '軌道がずれています。お手本の青い線をなぞるように意識しましょう。';
+      }
+      adviceList.push(msg);
     }
-  }
+  });
 
-  return advice;
+  return adviceList.length > 0 ? adviceList.join('\n') : '関節が選択されていません。';
 }
 
 function onVideoEnded() {
@@ -396,9 +451,6 @@ function onVideoEnded() {
     endedCount = 0;
     isProcessingAdvice = true;
 
-    // アドバイス生成
-    adviceArea.textContent = '解析中...';
-
     // アドバイス生成 & ダウンロードボタン作成
     adviceArea.textContent = '解析中...';
 
@@ -409,11 +461,11 @@ function onVideoEnded() {
         if (recorder2 && recorder2.state !== 'inactive') recorder2.stop();
 
         // 分析実行
-        const jointIndex = parseInt(jointSelect.value, 10);
+        const selectedJoints = getSelectedJoints();
         const advice = analyzeMotion(
           referencePoseFrames,
           targetPoseFrames,
-          jointIndex
+          selectedJoints
         );
 
         adviceArea.textContent = advice;
