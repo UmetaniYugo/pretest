@@ -180,6 +180,11 @@ function handleFileSelect(event, videoEl, canvasEl, videoNameEl, videoStatusEl, 
     videoStatusEl.innerHTML = `準備完了<br><small>(${videoEl.videoWidth}x${videoEl.videoHeight}, ${videoEl.duration.toFixed(0)}s)</small>`;
     addLog(`動画ロード成功: ${file.name}`);
 
+    // 親コンテナのアスペクト比を動画の比率に合わせる
+    if (videoEl.parentElement) {
+      videoEl.parentElement.style.aspectRatio = `${videoEl.videoWidth} / ${videoEl.videoHeight}`;
+    }
+
     videoEl.style.display = 'block';
     canvasEl.style.display = 'block';
 
