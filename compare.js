@@ -109,7 +109,7 @@ function drawPoseOverlay(results, ctx) {
   if (!results.poseLandmarks) return;
   try {
     window.drawConnectors(ctx, results.poseLandmarks, window.POSE_CONNECTIONS, { color: '#00FF00', lineWidth: 4 });
-    window.drawLandmarks(ctx, results.poseLandmarks, { color: '#FF0000', lineWidth: 4, radius: 2 });
+    window.drawLandmarks(ctx, results.poseLandmarks, { color: '#FF0000', lineWidth: 2 });
   } catch (e) {
     // 描画エラーはログ抑制(頻出するため)
   }
@@ -255,7 +255,7 @@ compareBtn.addEventListener('click', async (e) => {
   } catch (e) {
     addLog('再生開始エラー: ' + e.message, 'error');
     compareBtn.disabled = false;
-    compareBtn.textContent = '動画比較してAIアドバイス表示';
+    compareBtn.textContent = '動画比較してアドバイス表示';
     return;
   }
 
@@ -301,8 +301,12 @@ function analyzeMotion(referenceFrames, targetFrames, jointIndex) {
   let tarYSum = 0;
 
   for (let i = 0; i < len; i++) {
+    if (!referenceFrames[i] || !targetFrames[i]) continue;
+
     const refL = referenceFrames[i].landmarks;
     const tarL = targetFrames[i].landmarks;
+
+    if (!refL || !tarL) continue;
 
     const rScale = getScale(refL);
     const tScale = getScale(tarL);
@@ -357,8 +361,9 @@ function onVideoEnded() {
   if (endedCount >= 2) {
     addLog('両動画再生終了。解析開始...');
 
-    if (loopManager1.val) loopManager1.val();
-    if (loopManager2.val) loopManager2.val();
+    // ループは停止しない（巻き戻し再生のため）
+    // if (loopManager1.val) loopManager1.val();
+    // if (loopManager2.val) loopManager2.val();
 
     endedCount = 0;
     isProcessingAdvice = true;
