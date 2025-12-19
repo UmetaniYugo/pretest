@@ -176,44 +176,56 @@
     }
 
     .video-block {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+      max-width: 48vw;
+      /* PC: width split */
+      background: transparent;
+      border: none;
+    }
+
+    .video-container,
+    .canvas-container {
       position: relative;
-      width: auto;
-      /* Allow width to shrink to fit aspect ratio */
-      height: auto;
-      max-width: 96vw;
-      /* Mobile max width */
+      width: 100%;
+      aspect-ratio: 16/9;
       background: #000;
       border-radius: 8px;
       overflow: hidden;
-      aspect-ratio: 16/9;
-      /* Default, overridden by JS */
-      display: flex;
-      justify-content: center;
-      align-items: center;
       border: 1px solid #333;
-      max-height: 80vh;
     }
 
     video {
-      width: auto;
-      height: auto;
-      max-width: 100%;
-      max-height: 80vh;
+      width: 100%;
+      height: 100%;
       display: block;
     }
 
-    canvas {
+    .canvas-container canvas {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      pointer-events: none;
       z-index: 10;
+      pointer-events: none;
+      /* Allow clicks to pass through to video controls */
     }
 
-    .trajectory-canvas {
+    .canvas-container .trajectory-canvas {
       z-index: 5;
+    }
+
+    @media (max-width: 768px) {
+      .video-wrapper {
+        flex-direction: column;
+      }
+
+      .video-block {
+        max-width: 100%;
+      }
     }
 
     /* Info Areas */
@@ -324,16 +336,39 @@
     <button id="compareBtn">動画比較してアドバイス表示</button>
   </div>
 
+  <!-- 再生コントロール (解析後に表示) -->
+  <div id="playbackControls" style="display:none; margin: 10px 0; text-align:center;">
+    <button id="replayBtn" class="download-btn"
+      style="background: #2196f3; box-shadow: 0 4px 15px rgba(33, 150, 243, 0.4);">
+      最初から再生
+    </button>
+  </div>
+
   <div class="video-wrapper">
+    <!-- Left Side -->
     <div class="video-block">
-      <video id="video1" controls playsinline muted preload="auto"></video>
-      <canvas id="canvasTrajectory1" class="trajectory-canvas"></canvas>
-      <canvas id="canvas1"></canvas>
+      <div style="text-align:center; font-weight:bold; color:#00bcd4;">お手本動画</div>
+      <div class="video-container">
+        <video id="video1" controls playsinline muted preload="auto"></video>
+      </div>
+      <div style="text-align:center; font-weight:bold; color:#00bcd4; margin-top:5px;">骨格解析</div>
+      <div class="canvas-container">
+        <canvas id="canvasTrajectory1" class="trajectory-canvas"></canvas>
+        <canvas id="canvas1"></canvas>
+      </div>
     </div>
+
+    <!-- Right Side -->
     <div class="video-block">
-      <video id="video2" controls playsinline muted preload="auto"></video>
-      <canvas id="canvasTrajectory2" class="trajectory-canvas"></canvas>
-      <canvas id="canvas2"></canvas>
+      <div style="text-align:center; font-weight:bold; color:#ff4081;">比較動画</div>
+      <div class="video-container">
+        <video id="video2" controls playsinline muted preload="auto"></video>
+      </div>
+      <div style="text-align:center; font-weight:bold; color:#ff4081; margin-top:5px;">骨格解析</div>
+      <div class="canvas-container">
+        <canvas id="canvasTrajectory2" class="trajectory-canvas"></canvas>
+        <canvas id="canvas2"></canvas>
+      </div>
     </div>
   </div>
 
