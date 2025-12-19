@@ -80,7 +80,7 @@ function startDrawLoop(video, canvas, ctxRef, label, getLatestResults, trajector
 
   function loop() {
     try {
-      if (!video.paused && !video.ended && video.readyState >= 2) {
+      if (video.readyState >= 2) {
         const vw = video.videoWidth;
         const vh = video.videoHeight;
 
@@ -373,82 +373,117 @@ function getSelectedJoints() {
   return Array.from(checkboxes).map(cb => parseInt(cb.value, 10));
 }
 
+// 投動作解析: リリースポイント（手首速度最大）を検出
+function detectReleaseFrame(poseFrames, isRightSide = true) {
+  if (poseFrames.length < 5) return -1;
+
+  // 手首のインデックス: 右手首16, 左手首15
+  // isRightSide=true (Right video) -> video2? 
+  // Argument logic: pass frames and dominate hand info?
+  // Let's assume we look for the fastest movement of ANY wrist.
+
+  let maxSpeed = 0;
+  let releaseIndex = 0;
+
+  for (let i = 1; i < poseFrames.length - 1; i++) {
+    const prev = poseFrames[i - 1].landmarks;
+    const curr = poseFrames[i].landmarks;
+
+    // Check both wrists
+    [15, 16].forEach(idx => {
+      if (prev[idx] && curr[idx]) {
+        const dx = curr[idx].x - prev[idx].x;
+        const dy = curr[idx].y - prev[idx].y;
+        const speed = Math.sqrt(dx * dx + dy * dy);
+        if (speed > maxSpeed) {
+          maxSpeed = speed;
+          releaseIndex = i;
+        }
+      }
+    });
+  }
+  return releaseIndex;
+}
+
+function getQualitativeAdvice(diff, jointName, featureName, isHigher) {
+  // diff: 正の値(絶対値ではない、方向付き)が必要だが、ここでは上位で判定済みとする
+  // isHigher: Targetの方がYが小さい(高い)場合にtrue
+
+  const absDiff = Math.abs(diff);
+  const THRESHOLD_SMALL = 0.05;
+  const THRESHOLD_LARGE = 0.15;
+
+  if (absDiff < THRESHOLD_SMALL) return null; // 差が小さい
+
+  const degree = absDiff >= THRESHOLD_LARGE ? '大きく' : '少し';
+  const direction = isHigher ? '高い' : '低い';
+  const instruction = isHigher ? '下げて' : '上げて';
+
+  return `・${featureName}の${jointName}が【${degree}${direction}】です。${degree}${instruction}みましょう。`;
+}
+
 function analyzeMotion(referenceFrames, targetFrames, selectedJoints) {
   if (!referenceFrames.length || !targetFrames.length) return 'データが不足しています。';
 
-  // 簡易的な肩幅による正規化
-  function getScale(landmarks) {
+  // 1. リリースポイント検出
+  const refReleaseIdx = detectReleaseFrame(referenceFrames);
+  const tarReleaseIdx = detectReleaseFrame(targetFrames);
+
+  if (refReleaseIdx === -1 || tarReleaseIdx === -1) {
+    return '投げる動作（速い動き）が検出できませんでした。腕を振る動作を行ってください。';
+  }
+
+  const phases = [
+    { name: 'テイクバック（投げる前）', offset: -10 },
+    { name: 'リリース（投げる瞬間）', offset: 0 },
+    { name: 'フォロースルー（投げた後）', offset: 10 }
+  ];
+
+  let adviceDetails = [];
+
+  // 肩幅スケール用 (Releaseフレーム基準)
+  const getScale = (landmarks) => {
     if (!landmarks) return 1;
     const ls = landmarks[11];
     const rs = landmarks[12];
-    if (ls && rs && ls.visibility > 0.5 && rs.visibility > 0.5) {
-      return Math.sqrt(Math.pow(ls.x - rs.x, 2) + Math.pow(ls.y - rs.y, 2)) || 1;
-    }
-    return 1;
-  }
+    return (ls && rs) ? Math.sqrt(Math.pow(ls.x - rs.x, 2) + Math.pow(ls.y - rs.y, 2)) || 1 : 1;
+  };
 
-  const len = Math.min(referenceFrames.length, targetFrames.length);
-  let adviceList = [];
+  const refScale = getScale(referenceFrames[refReleaseIdx].landmarks);
+  const tarScale = getScale(targetFrames[tarReleaseIdx].landmarks);
 
-  selectedJoints.forEach(jointIndex => {
-    let diffSum = 0;
-    let validCount = 0;
-    let yDiffSum = 0; // + means target is lower (larger Y)
+  phases.forEach(phase => {
+    let phaseAdvice = [];
+    selectedJoints.forEach(jointIndex => {
+      const rIdx = Math.min(Math.max(0, refReleaseIdx + phase.offset), referenceFrames.length - 1);
+      const tIdx = Math.min(Math.max(0, tarReleaseIdx + phase.offset), targetFrames.length - 1);
 
-    for (let i = 0; i < len; i++) {
-      if (!referenceFrames[i] || !targetFrames[i]) continue;
-      const refL = referenceFrames[i].landmarks;
-      const tarL = targetFrames[i].landmarks;
-      if (!refL || !tarL) continue;
+      const rLm = referenceFrames[rIdx].landmarks?.[jointIndex];
+      const tLm = targetFrames[tIdx].landmarks?.[jointIndex];
 
-      const rScale = getScale(refL);
-      const tScale = getScale(tarL);
+      if (rLm && tLm && rLm.visibility > 0.5 && tLm.visibility > 0.5) {
+        // Y座標比較 (Low/High) - Normalized
+        // Yは下がプラス。 rY < tY なら Targetは下にある(低い)
+        const rY = rLm.y / refScale;
+        const tY = tLm.y / tarScale;
+        const diffY = tY - rY; // 正ならTargetが低い
 
-      const refJoint = refL[jointIndex];
-      const tarJoint = tarL[jointIndex];
-
-      if (refJoint && tarJoint && refJoint.visibility > 0.5 && tarJoint.visibility > 0.5) {
-        // Normalize
-        const rX = refJoint.x / rScale;
-        const rY = refJoint.y / rScale;
-        const tX = tarJoint.x / tScale;
-        const tY = tarJoint.y / tScale;
-
-        // Distance
-        const diff = Math.sqrt(Math.pow(rX - tX, 2) + Math.pow(rY - tY, 2));
-        diffSum += diff;
-
-        yDiffSum += (tY - rY);
-        validCount++;
+        const label = JOINT_LABELS[jointIndex] || '関節';
+        const msg = getQualitativeAdvice(diffY, label, phase.name, diffY < 0);
+        if (msg) phaseAdvice.push(msg);
       }
-    }
+    });
 
-    const label = JOINT_LABELS[jointIndex] || `関節(${jointIndex})`;
-
-    if (validCount === 0) {
-      adviceList.push(`[${label}] 検出できませんでした。`);
-      return;
-    }
-
-    const avgDiff = diffSum / validCount;
-    const avgYDiff = yDiffSum / validCount;
-
-    if (avgDiff < 0.1) {
-      adviceList.push(`[${label}] 素晴らしい！お手本とほぼ同じ動きです。`);
-    } else {
-      let msg = `[${label}] ズレがあります。`;
-      if (avgYDiff > 0.05) {
-        msg += '位置が【低い】です。もっと高く保ちましょう。';
-      } else if (avgYDiff < -0.05) {
-        msg += '位置が【高い】です。重心を落とすかリラックスしてください。';
-      } else {
-        msg += '軌道がずれています。お手本の青い線をなぞるように意識しましょう。';
-      }
-      adviceList.push(msg);
+    if (phaseAdvice.length > 0) {
+      adviceDetails.push(`【${phase.name}】\n` + phaseAdvice.join('\n'));
     }
   });
 
-  return adviceList.length > 0 ? adviceList.join('\n') : '関節が選択されていません。';
+  if (adviceDetails.length === 0) {
+    return '全体的に素晴らしいフォームです！お手本との大きなズレは見当たりません。';
+  }
+
+  return adviceDetails.join('\n\n');
 }
 
 function onVideoEnded() {
@@ -518,12 +553,7 @@ function createDownloadButton(chunks, filename, label) {
 
   const btn = document.createElement('button');
   btn.textContent = label;
-  btn.style.padding = '10px';
-  btn.style.background = '#e65100';
-  btn.style.color = 'white';
-  btn.style.border = 'none';
-  btn.style.borderRadius = '5px';
-  btn.style.cursor = 'pointer';
+  btn.className = 'download-btn';
   btn.onclick = () => a.click();
 
   downloadArea.appendChild(btn);
