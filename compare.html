@@ -347,12 +347,14 @@
   <div class="video-wrapper">
     <!-- Left Side -->
     <div class="video-block">
-      <div style="text-align:center; font-weight:bold; color:#00bcd4;">お手本動画</div>
+      <div style="text-align:center; font-weight:bold; color:#00bcd4;">お手本（元動画）</div>
       <div class="video-container">
-        <video id="video1" controls playsinline muted preload="auto"></video>
+        <video id="video1_raw" controls playsinline muted preload="auto"></video>
       </div>
-      <div style="text-align:center; font-weight:bold; color:#00bcd4; margin-top:5px;">骨格解析</div>
-      <div class="canvas-container">
+
+      <div style="text-align:center; font-weight:bold; color:#00bcd4; margin-top:10px;">お手本（骨格解析）</div>
+      <div class="video-container overlay-container">
+        <video id="video1" controls playsinline muted preload="auto"></video>
         <canvas id="canvasTrajectory1" class="trajectory-canvas"></canvas>
         <canvas id="canvas1"></canvas>
       </div>
@@ -360,12 +362,14 @@
 
     <!-- Right Side -->
     <div class="video-block">
-      <div style="text-align:center; font-weight:bold; color:#ff4081;">比較動画</div>
+      <div style="text-align:center; font-weight:bold; color:#ff4081;">比較動画（元動画）</div>
       <div class="video-container">
-        <video id="video2" controls playsinline muted preload="auto"></video>
+        <video id="video2_raw" controls playsinline muted preload="auto"></video>
       </div>
-      <div style="text-align:center; font-weight:bold; color:#ff4081; margin-top:5px;">骨格解析</div>
-      <div class="canvas-container">
+
+      <div style="text-align:center; font-weight:bold; color:#ff4081; margin-top:10px;">比較動画（骨格解析）</div>
+      <div class="video-container overlay-container">
+        <video id="video2" controls playsinline muted preload="auto"></video>
         <canvas id="canvasTrajectory2" class="trajectory-canvas"></canvas>
         <canvas id="canvas2"></canvas>
       </div>
