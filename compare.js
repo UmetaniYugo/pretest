@@ -12,6 +12,8 @@ const diagnosticsEl = document.getElementById('diagnostics');
 
 const video1 = document.getElementById('video1');
 const video2 = document.getElementById('video2');
+const video1Raw = document.getElementById('video1_raw');
+const video2Raw = document.getElementById('video2_raw');
 const canvas1 = document.getElementById('canvas1');
 const canvas2 = document.getElementById('canvas2');
 const canvasTrajectory1 = document.getElementById('canvasTrajectory1');
@@ -21,6 +23,7 @@ const compareBtn = document.getElementById('compareBtn');
 const playbackControls = document.getElementById('playbackControls');
 const replayBtn = document.getElementById('replayBtn');
 
+// 下段のビデオのみ制御（上段は独立）
 replayBtn.addEventListener('click', () => {
   video1.currentTime = 0;
   video2.currentTime = 0;
@@ -115,29 +118,32 @@ function startDrawLoop(video, canvas, ctxRef, label, getLatestResults, trajector
           lastLandmarks = null; // リセット
         }
 
-        // ビデオ描画
+        // ビデオ描画は行わず、透明なCanvasに骨格だけを描く(動画は下のvideoタグが表示)
         ctxRef.ctx.clearRect(0, 0, vw, vh);
-        ctxRef.ctx.drawImage(video, 0, 0, vw, vh);
+        // ctxRef.ctx.drawImage(video, 0, 0, vw, vh); // REMOVED
 
         // 骨格描画
         const results = getLatestResults();
         if (results && results.poseLandmarks) {
           drawPoseOverlay(results, ctxRef.ctx);
 
-          // 3. 軌跡描画 (Incremental)
-          if (ctxTraj) {
+          // 軌跡描画 (Incremental)
+          if (trajectoryCanvas && ctxTraj) {
             drawTrajectoryIncremental(lastLandmarks, results.poseLandmarks, ctxTraj, label === 'Left' ? '#00FFFF' : '#FF00FF');
-            lastLandmarks = results.poseLandmarks;
+            lastLandmarks = results.poseLandmarks; // Update for next frame
           }
         }
       }
     } catch (e) {
-      if (Math.random() < 0.01) addLog(`${label}: draw loop 例外: ${e.message || e}`, 'error'); // ログ抑制
+      if (Math.random() < 0.01) addLog(`Draw loop error (${label}): ${e.message}`, 'error');
     }
     rafId = requestAnimationFrame(loop);
   }
-  loop();
-  return () => { if (rafId) cancelAnimationFrame(rafId); };
+  rafId = requestAnimationFrame(loop);
+
+  return () => {
+    if (rafId) cancelAnimationFrame(rafId);
+  };
 }
 
 function stopLoop(rafRef) { if (rafRef && typeof rafRef === 'function') rafRef(); }
@@ -287,8 +293,8 @@ function handleFileSelect(event, videoEl, canvasEl, videoNameEl, videoStatusEl, 
 const loopManager1 = { val: null, get() { return this.val; }, set(fn) { this.val = fn; } };
 const loopManager2 = { val: null, get() { return this.val; }, set(fn) { this.val = fn; } };
 
-video1Input.addEventListener('change', (e) => handleFileSelect(e, video1, canvas1, video1Name, video1Status, objectURLManager1, pose1, ctx1, 'Left', loopManager1));
-video2Input.addEventListener('change', (e) => handleFileSelect(e, video2, canvas2, video2Name, video2Status, objectURLManager2, pose2, ctx2, 'Right', loopManager2));
+video1Input.addEventListener('change', (e) => handleFileSelect(e, video1, video1Raw, video1Name, video1Status, pose1, (res) => { latestResults1 = res }, objectURLManager1));
+video2Input.addEventListener('change', (e) => handleFileSelect(e, video2, video2Raw, video2Name, video2Status, pose2, (res) => { latestResults2 = res }, objectURLManager2));
 
 // --- 比較・再生処理 ---
 
