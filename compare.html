@@ -272,7 +272,28 @@
     <div class="filename" id="video2Name"></div>
     <div class="status" id="video2Status"></div>
 
-    <button id="compareBtn">動画比較してAIアドバイス表示</button>
+    <!-- 関節選択 UI -->
+    <div style="width:100%; max-width:400px; margin-top:10px;">
+      <label for="jointSelect"
+        style="display:block; margin-bottom:5px; font-weight:bold; color:#00e5ff;">注目する関節:</label>
+      <select id="jointSelect" style="width:100%; padding:10px; border-radius:8px; border:none; font-size:1rem;">
+        <option value="16">右手首 (Right Wrist)</option>
+        <option value="15">左手首 (Left Wrist)</option>
+        <option value="14">右ひじ (Right Elbow)</option>
+        <option value="13">左ひじ (Left Elbow)</option>
+        <option value="12">右肩 (Right Shoulder)</option>
+        <option value="11">左肩 (Left Shoulder)</option>
+        <option value="24">右腰 (Right Hip)</option>
+        <option value="23">左腰 (Left Hip)</option>
+        <option value="26">右ひざ (Right Knee)</option>
+        <option value="25">左ひざ (Left Knee)</option>
+        <option value="28">右足首 (Right Ankle)</option>
+        <option value="27">左足首 (Left Ankle)</option>
+        <option value="0">鼻 (顔の向き / Nose)</option>
+      </select>
+    </div>
+
+    <button id="compareBtn">動画比較してアドバイス表示</button>
   </div>
 
   <div class="video-wrapper">
