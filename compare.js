@@ -1,4 +1,4 @@
-import { getAdviceFromGemini } from './aiAdvice.js';
+// import { getAdviceFromGemini } from './aiAdvice.js'; // Removed for global usage
 
 /* compare.js - Mobile optimization & Fixes */
 
@@ -21,6 +21,7 @@ let referencePoseFrames = [];
 let targetPoseFrames = [];
 let latestResults1 = null;
 let latestResults2 = null;
+let isComparisonActive = false; // Flag to control advice generation
 
 // objectURL 管理
 let currentObjectURL1 = null, currentObjectURL2 = null;
@@ -188,8 +189,8 @@ function handleFileSelect(event, videoEl, canvasEl, videoNameEl, videoStatusEl, 
     videoEl.style.display = 'block';
     canvasEl.style.display = 'block';
 
-    // 自動再生
-    videoEl.play().catch(e => addLog(`自動再生保留: ${e.message}`, 'info'));
+    // 自動再生削除
+    // videoEl.play().catch(e => addLog(`自動再生保留: ${e.message}`, 'info'));
 
     // ループ開始
     const stopSync = startDrawLoop(videoEl, canvasEl, { ctx: ctx }, label, () => (label === 'Left' ? latestResults1 : latestResults2));
@@ -247,6 +248,8 @@ compareBtn.addEventListener('click', async (e) => {
   video1.currentTime = 0;
   video2.currentTime = 0;
 
+  isComparisonActive = true;
+
   try {
     await Promise.all([video1.play(), video2.play()]);
   } catch (e) {
@@ -272,6 +275,8 @@ let isProcessingAdvice = false;
 
 function onVideoEnded() {
   if (isProcessingAdvice) return;
+  if (!isComparisonActive) return; // Only process if compare button was clicked
+
   endedCount++;
   if (endedCount >= 2) { // 簡易判定: 両方終わったら
     addLog('両動画再生終了。解析開始...');
@@ -302,6 +307,7 @@ function onVideoEnded() {
         compareBtn.disabled = false;
         compareBtn.textContent = '動画比較してAIアドバイス表示';
         isProcessingAdvice = false;
+        isComparisonActive = false; // Reset flag
       }
     }, 500);
   }
