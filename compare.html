@@ -210,7 +210,10 @@
       height: 100%;
       pointer-events: none;
       z-index: 10;
-      /* visualization debug: border: 1px solid red; */
+    }
+
+    .trajectory-canvas {
+      z-index: 5;
     }
 
     /* Info Areas */
@@ -300,10 +303,12 @@
   <div class="video-wrapper">
     <div class="video-block">
       <video id="video1" controls playsinline muted preload="auto"></video>
+      <canvas id="canvasTrajectory1" class="trajectory-canvas"></canvas>
       <canvas id="canvas1"></canvas>
     </div>
     <div class="video-block">
       <video id="video2" controls playsinline muted preload="auto"></video>
+      <canvas id="canvasTrajectory2" class="trajectory-canvas"></canvas>
       <canvas id="canvas2"></canvas>
     </div>
   </div>
