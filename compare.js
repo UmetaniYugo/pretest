@@ -18,6 +18,15 @@ const canvasTrajectory1 = document.getElementById('canvasTrajectory1');
 const canvasTrajectory2 = document.getElementById('canvasTrajectory2');
 const adviceArea = document.getElementById('adviceArea');
 const compareBtn = document.getElementById('compareBtn');
+const playbackControls = document.getElementById('playbackControls');
+const replayBtn = document.getElementById('replayBtn');
+
+replayBtn.addEventListener('click', () => {
+  video1.currentTime = 0;
+  video2.currentTime = 0;
+  video1.play();
+  video2.play();
+});
 
 let referencePoseFrames = [];
 let targetPoseFrames = [];
@@ -311,6 +320,7 @@ compareBtn.addEventListener('click', async (e) => {
 
   isComparisonActive = true;
   downloadArea.innerHTML = ''; // Reset download buttons
+  playbackControls.style.display = 'none';
   chunks1 = [];
   chunks2 = [];
 
@@ -535,6 +545,7 @@ function onVideoEnded() {
         compareBtn.textContent = '動画比較してアドバイス表示';
         isProcessingAdvice = false;
         isComparisonActive = false;
+        playbackControls.style.display = 'block'; // Show replay button
       }
     }, 500);
   }
