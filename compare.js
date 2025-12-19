@@ -136,10 +136,13 @@ function stopLoop(rafRef) { if (rafRef && typeof rafRef === 'function') rafRef()
 function drawPoseOverlay(results, ctx) {
   if (!results.poseLandmarks) return;
   try {
-    window.drawConnectors(ctx, results.poseLandmarks, window.POSE_CONNECTIONS, { color: '#00FF00', lineWidth: 4 });
+    const connections = window.POSE_CONNECTIONS || window.Pose.POSE_CONNECTIONS;
+    if (connections) {
+      window.drawConnectors(ctx, results.poseLandmarks, connections, { color: '#00FF00', lineWidth: 4 });
+    }
     window.drawLandmarks(ctx, results.poseLandmarks, { color: '#FF0000', lineWidth: 2 });
   } catch (e) {
-    // 描画エラーはログ抑制(頻出するため)
+    // console.error(e);
   }
 }
 
@@ -468,9 +471,9 @@ function onVideoEnded() {
 
     setTimeout(() => {
       try {
-        // 録画停止
-        if (recorder1 && recorder1.state !== 'inactive') recorder1.stop();
-        if (recorder2 && recorder2.state !== 'inactive') recorder2.stop();
+        // 録画停止 (エラー無視)
+        try { if (recorder1 && recorder1.state !== 'inactive') recorder1.stop(); } catch (e) { }
+        try { if (recorder2 && recorder2.state !== 'inactive') recorder2.stop(); } catch (e) { }
 
         // 分析実行
         const selectedJoints = getSelectedJoints();
