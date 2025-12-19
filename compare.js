@@ -273,41 +273,120 @@ compareBtn.addEventListener('click', async (e) => {
 let endedCount = 0;
 let isProcessingAdvice = false;
 
+const jointSelect = document.getElementById('jointSelect');
+
+function analyzeMotion(referenceFrames, targetFrames, jointIndex) {
+  if (!referenceFrames.length || !targetFrames.length) return 'データが不足しています。';
+
+  // 簡易的な肩幅による正規化
+  // index 11: left_shoulder, 12: right_shoulder
+  function getScale(landmarks) {
+    if (!landmarks) return 1;
+    const ls = landmarks[11];
+    const rs = landmarks[12];
+    if (ls && rs && ls.visibility > 0.5 && rs.visibility > 0.5) {
+      return Math.sqrt(Math.pow(ls.x - rs.x, 2) + Math.pow(ls.y - rs.y, 2)) || 1;
+    }
+    return 1;
+  }
+
+  // フレーム数の一致（簡易的に短い方に合わせるか、サンプリングする）
+  // ここでは単純に先頭から比較し、フレーム平均をとる
+  const len = Math.min(referenceFrames.length, targetFrames.length);
+  let diffSum = 0;
+  let validCount = 0;
+
+  // Y座標の推移（高さ）の平均
+  let refYSum = 0;
+  let tarYSum = 0;
+
+  for (let i = 0; i < len; i++) {
+    const refL = referenceFrames[i].landmarks;
+    const tarL = targetFrames[i].landmarks;
+
+    const rScale = getScale(refL);
+    const tScale = getScale(tarL);
+
+    const refJoint = refL[jointIndex];
+    const tarJoint = tarL[jointIndex];
+
+    if (refJoint && tarJoint && refJoint.visibility > 0.5 && tarJoint.visibility > 0.5) {
+      // 正規化座標比較
+      // (単純化のため、画像の中心などを原点とした相対座標にするのが理想だが、ここでは高さの違いを見るためにYを比較)
+      const rY = refJoint.y / rScale;
+      const tY = tarJoint.y / tScale;
+
+      const diff = Math.abs(rY - tY);
+      diffSum += diff;
+      refYSum += rY;
+      tarYSum += tY;
+      validCount++;
+    }
+  }
+
+  if (validCount === 0) return '指定された関節が検出されませんでした。';
+
+  const avgDiff = diffSum / validCount;
+  const avgRefY = refYSum / validCount;
+  const avgTarY = tarYSum / validCount;
+
+  // アドバイス文章作成
+  let advice = `平均ズレ（正規化後）: ${avgDiff.toFixed(3)}\n`;
+
+  if (avgDiff < 0.1) {
+    advice += '判定: お手本と非常によく似た動きです！素晴らしいです。';
+  } else {
+    advice += '判定: お手本との違いが見られます。\n';
+    if (avgTarY > avgRefY + 0.05) { // Y座標が大きい = 画面下 = 位置が低い
+      advice += '・全体的に位置が低くなっています。もう少し高く意識してみましょう。';
+    } else if (avgTarY < avgRefY - 0.05) {
+      advice += '・全体的に位置が高くなっています。重心を落とすか、位置を調整しましょう。';
+    } else {
+      advice += '・軌道がずれています。フォームを確認してください。';
+    }
+  }
+
+  return advice;
+}
+
 function onVideoEnded() {
   if (isProcessingAdvice) return;
-  if (!isComparisonActive) return; // Only process if compare button was clicked
+  if (!isComparisonActive) return;
 
   endedCount++;
-  if (endedCount >= 2) { // 簡易判定: 両方終わったら
+  if (endedCount >= 2) {
     addLog('両動画再生終了。解析開始...');
 
-    // ループ停止
     if (loopManager1.val) loopManager1.val();
     if (loopManager2.val) loopManager2.val();
 
     endedCount = 0;
-
     isProcessingAdvice = true;
 
-    // AIアドバイス
-    adviceArea.textContent = 'Gemini AIが骨格を分析中...';
+    // アドバイス生成
+    adviceArea.textContent = '解析中...';
 
-    setTimeout(async () => {
+    setTimeout(() => {
       try {
-        const advice = await getAdviceFromGemini(
-          referencePoseFrames.map(f => f.landmarks),
-          targetPoseFrames.map(f => f.landmarks)
+        const jointIndex = parseInt(jointSelect.value, 10);
+        const advice = analyzeMotion(
+          referencePoseFrames,
+          targetPoseFrames,
+          jointIndex
         );
+
         adviceArea.textContent = advice;
         adviceArea.style.background = '#00695c';
+        addLog('解析成功');
       } catch (e) {
-        adviceArea.textContent = 'アドバイス取得失敗: ' + e.message;
+        adviceArea.textContent = '解析失敗: ' + e.message;
         adviceArea.style.background = '#b71c1c';
+        addLog('解析エラー: ' + e.message, 'error');
       } finally {
         compareBtn.disabled = false;
-        compareBtn.textContent = '動画比較してAIアドバイス表示';
+        compareBtn.textContent = '動画比較してアドバイス表示';
         isProcessingAdvice = false;
-        isComparisonActive = false; // Reset flag
+        isComparisonActive = false;
       }
     }, 500);
   }
